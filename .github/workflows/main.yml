@@ -1,0 +1,17 @@
+name: Hello World Workflow
+
+on:
+  push:         # push 이벤트가 발생할 때 실행됨
+    branches:
+      - main    # main 브랜치에 push 될 때만
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: print
+        run: echo "Hello, GitHub Actions!"
