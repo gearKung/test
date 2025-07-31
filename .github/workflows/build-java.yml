@@ -1,0 +1,26 @@
+name: Java Compile Workflow
+
+on:
+  push:
+    paths:
+      - 'Main.java'   # Main.java가 변경될 때만 실행
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'  # 원하는 버전으로 변경 가능 (ex. 11, 21 등)
+
+      - name: Compile Main.java
+        run: javac Main.java
+
+      - name: Check for Main.class
+        run: ls -l Main.class
