@@ -13,6 +13,6 @@ public interface HotelRepository extends JpaRepository<Hotel, Long> {
 
     boolean existsByIdAndOwnerEmail(Long id, String ownerEmail);
 
-    @Query("SELECT DISTINCT h FROM Hotel h LEFT JOIN FETCH h.images LEFT JOIN FETCH h.hotelAmenities WHERE h.owner.id = :ownerId")
+    @Query("SELECT DISTINCT h FROM Hotel h LEFT JOIN FETCH h.images WHERE h.owner.id = :ownerId")
     List<Hotel> findByOwnerIdWithDetails(@Param("ownerId") Long ownerId);
 }

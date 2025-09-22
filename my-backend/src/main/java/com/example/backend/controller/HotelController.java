@@ -40,12 +40,13 @@ import com.example.backend.domain.Room;
 import com.example.backend.dto.AmenityDto;
 import com.example.backend.dto.HotelDto;
 import com.example.backend.dto.RoomDto;
-
+import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/hotels")
 @RequiredArgsConstructor
+@Slf4j
 public class HotelController {
 
     private final HotelService hotelService;
@@ -79,15 +80,30 @@ public class HotelController {
         return ResponseEntity.ok(toDto(savedHotel));
     }
 
+    
     // 업주별 호텔 목록 조회
     @GetMapping("/my-hotels")
     public ResponseEntity<List<HotelDto>> getMyHotels(@RequestHeader("Authorization") String authHeader) {
-        Long ownerId = getUserIdFromToken(authHeader);
-        List<Hotel> hotels = hotelService.getHotelsByOwner(ownerId);
-        List<HotelDto> hotelDtos = hotels.stream()
-                .map(HotelDto::fromEntity) // DTO 변환 메소드 사용
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(hotelDtos);
+        
+        log.info("1. [HotelController] /my-hotels API 호출됨");
+        try {
+            Long ownerId = getUserIdFromToken(authHeader);
+            log.info("2. [HotelController] 토큰에서 추출된 ownerId: {}", ownerId);
+
+            List<Hotel> hotels = hotelService.getHotelsByOwner(ownerId);
+            log.info("4. [HotelController] HotelService에서 받은 호텔 수: {}", hotels.size());
+
+            List<HotelDto> hotelDtos = hotels.stream()
+                    .map(HotelDto::fromEntity)
+                    .collect(Collectors.toList());
+            
+            log.info("5. [HotelController] DTO로 변환된 호텔 수: {}", hotelDtos.size());
+            return ResponseEntity.ok(hotelDtos);
+
+        } catch (Exception e) {
+            log.error("[HotelController] 호텔 목록 조회 중 오류 발생", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }   
     }
 
     // 호텔 상세보기
@@ -98,54 +114,61 @@ public class HotelController {
     }
 
     // 호텔 수정
-   @PostMapping("/{id}")
+    @PostMapping("/{id}")
     public ResponseEntity<HotelDto> updateHotel(
             @PathVariable Long id,
             @RequestPart("hotel") HotelDto hotelDto,
             @RequestPart(value = "files", required = false) List<MultipartFile> files,
             @RequestHeader("Authorization") String authHeader) {
 
+        log.info("1. [Controller-수정] /api/hotels/{} API 호출됨", id);
+
         Long ownerId = getUserIdFromToken(authHeader);
-        
-        // (권한 체크 로직 필요)
+
         Hotel existingHotel = hotelService.getHotel(id);
         if (!existingHotel.getOwner().getId().equals(ownerId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
+
         
         List<String> imageUrls = new ArrayList<>();
-        // 기존 이미지 URL 유지
         if (hotelDto.getImageUrls() != null) {
             imageUrls.addAll(hotelDto.getImageUrls());
         }
-        // 새 파일이 있으면 저장하고 URL 목록에 추가
         if (files != null && !files.isEmpty()) {
             List<String> newImageUrls = files.stream()
                     .map(fileStorageService::store)
                     .collect(Collectors.toList());
             imageUrls.addAll(newImageUrls);
         }
-
-        Hotel updatedHotel = hotelService.updateHotel(id, hotelDto, imageUrls, hotelDto.getAmenityIds());
-        return ResponseEntity.ok(toDto(updatedHotel));
+                
+        HotelDto updatedHotelDto = hotelService.updateHotel(id, hotelDto, imageUrls, hotelDto.getAmenityIds());
+        log.info("5. [Controller-수정] 호텔 수정 완료, 호텔 ID: {}", updatedHotelDto.getId());
+        
+        return ResponseEntity.ok(updatedHotelDto);
     }
-
     // 호텔 삭제
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteHotel(@PathVariable Long id, @RequestHeader("Authorization") String authHeader) {
+        log.info("1. [Controller-삭제] /api/hotels/{} API 호출됨", id);
+        try {
+            Long ownerId = getUserIdFromToken(authHeader);
+            log.info("2. [Controller-삭제] 토큰에서 추출된 ownerId: {}", ownerId);
 
-        Long ownerId = getUserIdFromToken(authHeader);
+            Hotel existingHotel = hotelService.getHotel(id);
+            if (!existingHotel.getOwner().getId().equals(ownerId)) {
+                log.warn("   [Controller-삭제] 권한 없음. 호텔 소유주 ID: {}, 요청자 ID: {}", existingHotel.getOwner().getId(), ownerId);
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            
+            hotelService.deleteHotel(id);
+            log.info("4. [Controller-삭제] 호텔 삭제 완료, 호텔 ID: {}", id);
+            return ResponseEntity.noContent().build();
 
-        Hotel existingHotel = hotelService.getHotel(id);
-        if (!existingHotel.getOwner().getId().equals(ownerId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        } catch (Exception e) {
+            log.error("[Controller-삭제] 호텔 삭제 중 오류 발생", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
-
-        
-
-        // (권한 체크 로직 추가 권장)
-        hotelService.deleteHotel(id);
-        return ResponseEntity.noContent().build();
     }
 
     // ----- 객실관리-----
@@ -153,11 +176,18 @@ public class HotelController {
     //특정 호텔의 모든 객실 조회
     @GetMapping("/{hotelId}/rooms")
     public ResponseEntity<List<RoomDto>> getRoomsByHotel(@PathVariable Long hotelId) {
-        List<Room> rooms = roomService.findByHotelId(hotelId);
-        List<RoomDto> roomDtos = rooms.stream()
-                                    .map(RoomDto::fromEntity)
-                                    .collect(Collectors.toList());
-        return ResponseEntity.ok(roomDtos);
+        log.info("1. [Controller-객실 조회] /api/hotels/{}/rooms API 호출됨", hotelId);
+        try {
+            // ✅ [수정] 서비스에서 바로 DTO 리스트를 받습니다.
+            List<RoomDto> roomDtos = roomService.findByHotelId(hotelId);
+            
+            log.info("3. [Controller-객실 조회] 서비스로부터 {}개 객실 DTO 받음", roomDtos.size());
+            return ResponseEntity.ok(roomDtos);
+            
+        } catch (Exception e) {
+            log.error("[Controller-객실 조회] 객실 조회 중 오류 발생", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
     // 특정 호텔에 객실 등록
@@ -167,19 +197,28 @@ public class HotelController {
             @RequestPart("room") RoomDto roomDto,
             @RequestPart(value = "files", required = false) List<MultipartFile> files,
             @AuthenticationPrincipal UserDetails userDetails) {
+        
+        log.info("1. [Controller-객실 생성] /api/hotels/{}/rooms API 호출됨", hotelId);
+        if (userDetails == null) {
+            log.warn("   [Controller-객실 생성] 인증된 사용자가 아님. 401 반환");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        log.info("2. [Controller-객실 생성] 요청자: {}, 요청 DTO: {}", userDetails.getUsername(), roomDto);
 
         if (userDetails == null) {
             return ResponseEntity.status(401).build();
         }
 
         List<String> imageUrls = new ArrayList<>();
-        if (files != null && !files.isEmpty()) {
+        if (files != null && !files .isEmpty()) {
             imageUrls = files.stream()
                     .map(fileStorageService::store)
                     .collect(Collectors.toList());
         }
 
         Room newRoom = roomService.createRoom(hotelId, roomDto, imageUrls, userDetails.getUsername());
+        log.info("4. [Controller-객실 생성] 객실 생성 완료, Room ID: {}", newRoom.getId());
         return ResponseEntity.ok(RoomDto.fromEntity(newRoom));
     }
 
@@ -191,6 +230,13 @@ public class HotelController {
             @RequestPart("room") RoomDto roomDto,
             @RequestPart(value = "files", required = false) List<MultipartFile> files,
             @AuthenticationPrincipal UserDetails userDetails) {
+        
+        log.info("1. [Controller-객실 수정] /api/hotels/rooms/{} API 호출됨", roomId);
+        if (userDetails == null) {
+            log.warn("   [Controller-객실 수정] 인증된 사용자가 아님. 401 반환");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        log.info("2. [Controller-객실 수정] 요청자: {}, 요청 DTO: {}", userDetails.getUsername(), roomDto);
         
         if (userDetails == null) {
             return ResponseEntity.status(401).build();
@@ -207,16 +253,21 @@ public class HotelController {
         }
 
         Room updatedRoom = roomService.updateRoom(roomId, roomDto, imageUrls, userDetails.getUsername());
+        log.info("4. [Controller-객실 수정] 객실 수정 완료, Room ID: {}", updatedRoom.getId());
         return ResponseEntity.ok(RoomDto.fromEntity(updatedRoom));
     }
 
     // 객실 삭제
     @DeleteMapping("/rooms/{roomId}")
     public ResponseEntity<Void> deleteRoom(@PathVariable Long roomId, @AuthenticationPrincipal UserDetails userDetails) {
+        log.info("1. [Controller-객실 삭제] /api/hotels/rooms/{} API 호출됨", roomId);
         if (userDetails == null) {
-            return ResponseEntity.status(401).build();
+            log.warn("   [Controller-객실 삭제] 인증된 사용자가 아님. 401 반환");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
+        log.info("2. [Controller-객실 삭제] 요청자: {}", userDetails.getUsername());
         roomService.deleteRoom(roomId, userDetails.getUsername());
+        log.info("4. [Controller-객실 삭제] 객실 삭제 완료, Room ID: {}", roomId);
         return ResponseEntity.noContent().build();
     }
 

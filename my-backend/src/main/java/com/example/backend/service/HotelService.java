@@ -24,10 +24,12 @@ import com.example.backend.repository.RoomRepository;
 import com.example.backend.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class HotelService {
     
     private final HotelRepository hotelRepository;
@@ -80,7 +82,21 @@ public class HotelService {
     // 업주 본인 호텔 목록 조회
     @Transactional(readOnly = true)
     public List<Hotel> getHotelsByOwner(Long ownerId) {
-        return hotelRepository.findByOwnerIdWithDetails(ownerId);
+        log.info("3. [HotelService] getHotelsByOwner 호출됨, ownerId: {}", ownerId);
+        List<Hotel> hotels = hotelRepository.findByOwnerIdWithDetails(ownerId);
+        log.info("   [HotelService] DB 조회 결과 (이미지 포함), {}개의 호텔을 찾음", hotels.size());
+
+        // ✅ [추가] 편의시설 정보를 별도로 로딩합니다.
+        // N+1 문제를 방지하기 위해 stream을 사용하여 각 호텔의 편의시설을 초기화합니다.
+        hotels.forEach(hotel -> {
+            if (hotel.getHotelAmenities() != null) {
+                // LAZY 로딩된 컬렉션에 접근하여 데이터를 로드합니다.
+                hotel.getHotelAmenities().size(); 
+            }
+        });
+        
+        log.info("   [HotelService] 편의시설 정보 로딩 완료");
+        return hotels;
     }
 
     // 호텔 상세 조회
@@ -93,18 +109,40 @@ public class HotelService {
     // 호텔 삭제
     @Transactional
     public void deleteHotel(Long id) {
-        if (!hotelRepository.existsById(id)) {
-            throw new IllegalArgumentException("호텔이 존재하지 않습니다. id=" + id);
+        log.info("3. [Service-삭제] deleteHotel 호출됨, 호텔 ID: {}", id);
+
+        Hotel hotel = hotelRepository.findById(id)
+            .orElseThrow(() -> {
+                log.error("   [Service-삭제] 삭제할 호텔이 존재하지 않음, ID: {}", id);
+                return new IllegalArgumentException("호텔이 존재하지 않습니다. id=" + id);
+            });
+
+        // 2. [핵심] 호텔에 속한 모든 객실(Room)을 먼저 삭제합니다.
+        // 이렇게 하면 Room과 관련된 다른 데이터(예: RoomImage)도 Cascade 설정에 따라 함께 삭제됩니다.
+        List<Room> roomsToDelete = roomRepository.findByHotel(hotel);
+        if (!roomsToDelete.isEmpty()) {
+            log.info("   [Service-삭제] 호텔에 속한 {}개의 객실을 먼저 삭제합니다.", roomsToDelete.size());
+            roomRepository.deleteAll(roomsToDelete);
         }
-        // HotelAmenity 수동 삭제 (Cascade 설정에 따라 불필요할 수 있으나 명시적으로 처리)
-        hotelAmenityRepository.deleteByHotelId(id);
-        hotelRepository.deleteById(id);
+
+        // 3. 호텔에 연결된 편의시설 정보를 삭제합니다.
+        log.info("   [Service-삭제] 연결된 편의시설 정보 삭제 시작");
+        hotelAmenityRepository.deleteByHotelId(hotel.getId());
+        
+        // 4. 마지막으로 호텔을 삭제합니다.
+        // (호텔 이미지는 Hotel의 Cascade 설정에 따라 자동으로 삭제됩니다.)
+        log.info("   [Service-삭제] 호텔 본체 삭제 시작");
+        hotelRepository.delete(hotel);
+        
+        log.info("   [Service-삭제] 호텔 ID {} 삭제 완료", id);
     }
     
     @Transactional
-    public Hotel updateHotel(Long id, HotelDto hotelDto, List<String> imageUrls, List<Long> amenityIds) {
+    public HotelDto updateHotel(Long id, HotelDto hotelDto, List<String> imageUrls, List<Long> amenityIds) {
+        log.info("3. [Service-수정] updateHotel 호출됨, 호텔 ID: {}", id);
         Hotel hotel = hotelRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("호텔을 찾을 수 없습니다. id=" + id));
+        log.info("   [Service-수정] 수정할 호텔을 찾음: {}", hotel.getName());
 
         hotel.setName(hotelDto.getName());
         hotel.setAddress(hotelDto.getAddress());
@@ -123,16 +161,22 @@ public class HotelService {
         }
 
         // 편의시설 업데이트 (기존 연결 모두 삭제 후 새로 추가)
+        log.info("   [Service-수정] 기존 편의시설 삭제 시작");
+
         hotelAmenityRepository.deleteByHotelId(hotel.getId());
+
         if (amenityIds != null && !amenityIds.isEmpty()) {
             List<Amenity> amenities = amenityRepository.findAllById(amenityIds);
             List<HotelAmenity> hotelAmenities = amenities.stream()
                 .map(amenity -> HotelAmenity.builder().hotel(hotel).amenity(amenity).build())
                 .collect(Collectors.toList());
             hotelAmenityRepository.saveAll(hotelAmenities);
+            log.info("   [Service-수정] 새 편의시설 {}개 저장", hotelAmenities.size()); 
+            hotel.setHotelAmenities(hotelAmenities);    
         }
 
-        return hotelRepository.save(hotel);
+        Hotel savedHotel = hotelRepository.save(hotel);
+        return HotelDto.fromEntity(savedHotel);
     }
 
     @Transactional(readOnly = true)

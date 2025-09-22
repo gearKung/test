@@ -15,9 +15,11 @@ import com.example.backend.repository.RoomRepository;
 import com.example.backend.repository.HotelRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class RoomService {
     
     private final RoomRepository roomRepository;
@@ -25,7 +27,10 @@ public class RoomService {
 
     @Transactional
     public Room createRoom(Long hotelId, RoomDto roomDto, List<String> imageUrls, String userEmail) {
+        
+        log.info("3. [Service-객실 생성] createRoom 호출됨. Hotel ID: {}, 요청자: {}", hotelId, userEmail);
         if (!hotelRepository.existsByIdAndOwnerEmail(hotelId, userEmail)) {
+            log.error("   [Service-객실 생성] 권한 오류 또는 호텔 없음. Hotel ID: {}, 요청자: {}", hotelId, userEmail);
             throw new SecurityException("객실을 추가할 권한이 없거나 호텔이 존재하지 않습니다.");
         }
 
@@ -54,23 +59,32 @@ public class RoomService {
             room.setImages(roomImages);
         }
 
+        log.info("   [Service-객실 생성] 객실 저장 완료");
         return roomRepository.save(room);
     }
 
-
-    public List<Room> findByHotelId(Long hotelId) {
-        Hotel hotel = hotelRepository.findById(hotelId)
-            .orElseThrow(() -> new IllegalArgumentException("해당 호텔을 찾을 수 없습니다."));
-        return roomRepository.findByHotel(hotel);    
+    @Transactional(readOnly = true) // 트랜잭션 추가
+    public List<RoomDto> findByHotelId(Long hotelId) {
+        log.info("2. [Service-객실 조회] findByHotelId 호출됨. Hotel ID: {}", hotelId);
+        
+        // 1. 위에서 새로 만든 쿼리 메서드를 호출하여 이미지까지 함께 조회합니다.
+        List<Room> rooms = roomRepository.findByHotelIdWithImages(hotelId);
+        log.info("   [Service-객실 조회] DB에서 {}개의 객실(이미지 포함)을 찾음", rooms.size());
+        
+        // 2. 서비스 계층 내에서 DTO 리스트로 변환합니다.
+        return rooms.stream()
+            .map(RoomDto::fromEntity)
+            .collect(Collectors.toList());
     }
 
     @Transactional
     public Room updateRoom(Long roomId, RoomDto roomDto, List<String> imageUrls, String userEmail) {
+        log.info("3. [Service-객실 수정] updateRoom 호출됨. Room ID: {}, 요청자: {}", roomId, userEmail);
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new IllegalArgumentException("객실을 찾을 수 없습니다. id=" + roomId));
 
-        // 호텔 소유주 확인
         if (!room.getHotel().getOwner().getEmail().equals(userEmail)) {
+            log.error("   [Service-객실 수정] 권한 오류. 객실 소유주: {}, 요청자: {}", room.getHotel().getOwner().getEmail(), userEmail);
             throw new SecurityException("객실을 수정할 권한이 없습니다.");
         }
 
@@ -91,19 +105,22 @@ public class RoomService {
                     .collect(Collectors.toList());
             room.getImages().addAll(newImages);
         }
-
+        log.info("   [Service-객실 수정] 객실 업데이트 완료");
         return roomRepository.save(room);
     }
 
     @Transactional
     public void deleteRoom(Long roomId, String userEmail) {
+        log.info("3. [Service-객실 삭제] deleteRoom 호출됨. Room ID: {}, 요청자: {}", roomId, userEmail);
         Room room = roomRepository.findById(roomId)
             .orElseThrow(() -> new RuntimeException("Room not found"));
         
         if (!room.getHotel().getOwner().getEmail().equals(userEmail)) {
+            log.error("   [Service-객실 삭제] 권한 오류. 객실 소유주: {}, 요청자: {}", room.getHotel().getOwner().getEmail(), userEmail);
             throw new RuntimeException("User not authorized to delete this room");
         }
         
-        roomRepository.delete(room);
+        log.info("   [Service-객실 삭제] DB에서 객실 삭제 실행");
+        roomRepository.delete(room);    
     }
 }

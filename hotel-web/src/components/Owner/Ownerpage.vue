@@ -157,7 +157,12 @@
                 <label>편의시설</label>
                 <div class="amenities-grid">
                   <div v-for="amenity in allAmenities" :key="amenity.id" class="amenity-item">
-                    <input type="checkbox" :id="'amenity-' + amenity.id" :value="amenity.id" v-model="hotelForm.amenityIds">
+                    <input 
+                      type="checkbox" 
+                      :id="'amenity-' + amenity.id" 
+                      :value="amenity.id"
+                      v-model="hotelForm.amenityIds" 
+                    />
                     <label :for="'amenity-' + amenity.id">{{ amenity.name }}</label>
                   </div>
                 </div>
@@ -318,14 +323,30 @@ export default {
 
     // --- 데이터 조회 메소드 ---
     async fetchHotels() {
-      if (!this.user) return;
+      // 1. 로그인된 사용자 정보 확인
+      console.log("1. fetchHotels: 현재 사용자 정보", this.user);
+      if (!this.user) {
+        console.error("사용자 정보가 없어 호텔 목록을 조회할 수 없습니다.");
+        return;
+      }
+
       const headers = this.getAuthHeaders();
-      if (!headers) return;
+      if (!headers) {
+        console.error("인증 헤더가 없어 API를 호출할 수 없습니다.");
+        return;
+      }
+
+      // 2. API 호출 직전
+      console.log("2. fetchHotels: /api/hotels/my-hotels API 호출 시작");
+
       try {
         const res = await axios.get(`/api/hotels/my-hotels`, { headers });
+        // 3. API 응답 데이터 확인
+        console.log("3. fetchHotels: API 응답 데이터", res.data);
         this.myHotels = res.data;
       } catch (err) {
-        console.error("호텔 조회 실패:", err);
+        // 4. 에러 발생 시
+        console.error("4. fetchHotels: 호텔 조회 실패:", err.response?.data || err.message);
       }
     },
     async fetchAmenities() {
@@ -334,6 +355,7 @@ export default {
       try {
         const response = await axios.get('/api/hotels/amenities', { headers });
         this.allAmenities = response.data;
+        console.log("전체 편의시설 목록:", this.allAmenities);
       } catch (err) {
         console.error("편의시설 목록 조회 실패:", err);
 
@@ -346,11 +368,14 @@ export default {
     async fetchRooms(hotelId) {
       const headers = this.getAuthHeaders();
       if (!headers) return;
+      console.log("1. [객실 조회] API 호출 시작:", `/api/hotels/${hotelId}/rooms`);
       try {
         const res = await axios.get(`/api/hotels/${hotelId}/rooms`, { headers });
+        console.log("2. [객실 조회] API 응답 데이터:", res.data);
         this.rooms = res.data;
       } catch (err) {
-        console.error("객실 조회 실패:", err);
+        console.error("3. [객실 조회] API 호출 실패:", err.response?.data || err.message);
+        alert("객실 정보 조회에 실패했습니다.");
       }
     },
     
@@ -373,7 +398,7 @@ export default {
       }
       this.editingHotel = null;
     },
-
+    
     // --- 호텔 관리 ---
     openCreateForm() {
       this.editingHotel = null;
@@ -423,24 +448,44 @@ export default {
     async updateHotel(formData) {
       const headers = this.getAuthHeaders();
       if (!headers) return;
+
+      // 1. 수정 API 호출 직전 데이터 확인
+      console.log("1. [수정] API 호출 시작:", `/api/hotels/${this.editingHotel.id}`);
+      console.log("   [수정] 전송할 데이터 (FormData):", formData);
+      // FormData의 내용을 확인하려면 아래와 같이 각 key를 직접 로깅해야 합니다.
+      for (let [key, value] of formData.entries()) {
+        console.log(`   [수정] FormData ${key}:`, value);
+      }
+
       try {
         await axios.post(`/api/hotels/${this.editingHotel.id}`, formData, { headers });
+        // 2. 수정 성공 시
+        console.log("2. [수정] API 호출 성공");
         alert("호텔 정보가 성공적으로 수정되었습니다.");
         this.goToList();
-      } catch (err) { 
-        console.error("호텔 수정 실패:", err.response?.data || err.message);
-        alert("호텔 수정에 실패했습니다."); 
+      } catch (err) {
+        // 3. 수정 실패 시
+        console.error("3. [수정] API 호출 실패:", err.response?.data || err.message);
+        alert("호텔 수정에 실패했습니다.");
       }
     },
     async deleteHotel(id) {
-       if (!confirm("정말로 이 호텔을 삭제하시겠습니까? 연관된 모든 객실 정보도 함께 삭제됩니다.")) return;
+      if (!confirm("정말로 이 호텔을 삭제하시겠습니까? 연관된 모든 객실 정보도 함께 삭제됩니다.")) return;
       const headers = this.getAuthHeaders();
       if (!headers) return;
+
+      // 1. 삭제 API 호출 직전 ID 확인
+      console.log("1. [삭제] API 호출 시작:", `/api/hotels/${id}`);
+
       try {
         await axios.delete(`/api/hotels/${id}`, { headers });
+        // 2. 삭제 성공 시
+        console.log("2. [삭제] API 호출 성공");
         alert("호텔이 삭제되었습니다.");
         this.goToList();
       } catch (err) {
+        // 3. 삭제 실패 시
+        console.error("3. [삭제] API 호출 실패:", err.response?.data || err.message);
         alert("호텔 삭제에 실패했습니다.");
       }
     },
@@ -481,22 +526,35 @@ export default {
     async createRoom(formData) {
       const headers = this.getAuthHeaders();
       if (!headers) return;
+      console.log("1. [객실 생성] API 호출 시작:", `/api/hotels/${this.selectedHotel.id}/rooms`);
+      for (let [key, value] of formData.entries()) {
+        console.log(`   [객실 생성] FormData ${key}:`, value);
+      }
       try {
         await axios.post(`/api/hotels/${this.selectedHotel.id}/rooms`, formData, { headers });
+        console.log("2. [객실 생성] API 호출 성공");
         alert("객실이 등록되었습니다.");
         this.showRoomList(this.selectedHotel);
       } catch(err) {
+        console.error("3. [객실 생성] API 호출 실패:", err.response?.data || err.message);
         alert("객실 등록에 실패했습니다.");
       }
     },
+
     async updateRoom(formData) {
       const headers = this.getAuthHeaders();
       if (!headers) return;
+      console.log("1. [객실 수정] API 호출 시작:", `/api/hotels/rooms/${this.editingRoom.id}`);
+      for (let [key, value] of formData.entries()) {
+        console.log(`   [객실 수정] FormData ${key}:`, value);
+      }
       try {
         await axios.post(`/api/hotels/rooms/${this.editingRoom.id}`, formData, { headers });
+        console.log("2. [객실 수정] API 호출 성공");
         alert("객실 정보가 수정되었습니다.");
         this.showRoomList(this.selectedHotel);
       } catch(err) {
+        console.error("3. [객실 수정] API 호출 실패:", err.response?.data || err.message);
         alert("객실 수정에 실패했습니다.");
       }
     },
@@ -504,11 +562,14 @@ export default {
       if (!confirm("객실을 삭제하시겠습니까?")) return;
       const headers = this.getAuthHeaders();
       if (!headers) return;
+      console.log("1. [객실 삭제] API 호출 시작:", `/api/hotels/rooms/${roomId}`);
       try {
         await axios.delete(`/api/hotels/rooms/${roomId}`, { headers });
+        console.log("2. [객실 삭제] API 호출 성공");
         alert("객실이 삭제되었습니다.");
         this.fetchRooms(this.selectedHotel.id);
       } catch(err) {
+        console.error("3. [객실 삭제] API 호출 실패:", err.response?.data || err.message);
         alert("객실 삭제에 실패했습니다.");
       }
     },
@@ -682,7 +743,7 @@ export default {
 }
 .amenities-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 10px;
   background-color: #f9fafb;
   padding: 15px;
