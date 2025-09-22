@@ -144,38 +144,43 @@ public class HotelService {
                 .orElseThrow(() -> new IllegalArgumentException("호텔을 찾을 수 없습니다. id=" + id));
         log.info("   [Service-수정] 수정할 호텔을 찾음: {}", hotel.getName());
 
+        // 1. 호텔 기본 정보 업데이트
         hotel.setName(hotelDto.getName());
         hotel.setAddress(hotelDto.getAddress());
         hotel.setStarRating(hotelDto.getStarRating());
         hotel.setCountry(hotelDto.getCountry());
         hotel.setDescription(hotelDto.getDescription());
         hotel.setBusinessId(hotelDto.getBusinessId());
+        log.info("   [Service-수정] 호텔 기본 정보 업데이트 완료");
 
-        // 이미지 업데이트 (기존 이미지 모두 삭제 후 새로 추가)
-        hotel.getImages().clear();
+        // 2. 이미지 정보 업데이트
+        hotel.getImages().clear(); // 엔티티의 이미지 리스트를 비움
         if (imageUrls != null && !imageUrls.isEmpty()) {
             List<HotelImage> newImages = imageUrls.stream()
                     .map(url -> HotelImage.builder().hotel(hotel).url(url).build())
                     .collect(Collectors.toList());
-            hotel.getImages().addAll(newImages);
+            hotel.getImages().addAll(newImages); // 엔티티의 이미지 리스트에 새로 추가
         }
+        log.info("   [Service-수정] 이미지 정보 업데이트 완료. 새 이미지 수: {}", imageUrls != null ? imageUrls.size() : 0);
 
-        // 편의시설 업데이트 (기존 연결 모두 삭제 후 새로 추가)
-        log.info("   [Service-수정] 기존 편의시설 삭제 시작");
-
-        hotelAmenityRepository.deleteByHotelId(hotel.getId());
+        // 3. 편의시설 정보 업데이트 (JPA 방식)
+        hotel.getHotelAmenities().clear(); // 엔티티의 편의시설 리스트를 비움 (orphanRemoval=true가 DB 삭제를 처리)
+        log.info("   [Service-수정] 기존 편의시설 연결을 모두 제거했습니다.");
 
         if (amenityIds != null && !amenityIds.isEmpty()) {
             List<Amenity> amenities = amenityRepository.findAllById(amenityIds);
-            List<HotelAmenity> hotelAmenities = amenities.stream()
+            List<HotelAmenity> newHotelAmenities = amenities.stream()
                 .map(amenity -> HotelAmenity.builder().hotel(hotel).amenity(amenity).build())
                 .collect(Collectors.toList());
-            hotelAmenityRepository.saveAll(hotelAmenities);
-            log.info("   [Service-수정] 새 편의시설 {}개 저장", hotelAmenities.size()); 
-            hotel.setHotelAmenities(hotelAmenities);    
+            hotel.getHotelAmenities().addAll(newHotelAmenities); // 엔티티의 편의시설 리스트에 새로 추가
+            log.info("   [Service-수정] {}개의 새 편의시설 연결을 추가했습니다.", newHotelAmenities.size());
         }
 
+        // 4. 호텔 엔티티를 저장하면 모든 변경사항(이미지, 편의시설 포함)이 트랜잭션 커밋 시 DB에 반영됩니다.
         Hotel savedHotel = hotelRepository.save(hotel);
+        log.info("   [Service-수정] 호텔 저장 완료. 트랜잭션 커밋 대기 중...");
+
+        // 5. Controller의 LazyInitializationException 방지를 위해 Service단에서 DTO로 변환하여 반환
         return HotelDto.fromEntity(savedHotel);
     }
 

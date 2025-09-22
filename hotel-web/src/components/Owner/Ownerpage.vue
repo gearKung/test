@@ -121,6 +121,7 @@
         </section>
 
         <section v-if="currentView === 'hotelForm'">
+          <div class="form-wrapper">
           <div class="header-actions">
               <button class="back-btn" @click="cancelHotelForm">← 뒤로가기</button>
               <div class="user-actions">
@@ -128,6 +129,7 @@
                <button class="logout-btn" @click="logout">로그아웃</button>
               </div>
           </div>
+
           <div class="form-container">
             <h2>{{ editingHotel ? '호텔 수정' : '새 호텔 등록' }}</h2>
             <form @submit.prevent="handleHotelSubmit">
@@ -174,9 +176,11 @@
               </div>
             </form>
           </div>
+        </div>
         </section>
         
         <section v-if="currentView === 'roomForm'">
+          <div class="form-wrapper">
           <div class="header-actions">
               <button class="back-btn" @click="showRoomList(selectedHotel)">← 객실 목록으로</button>
               <div class="user-actions">
@@ -224,6 +228,7 @@
                   <button type="button" class="btn-secondary" @click="showRoomList(selectedHotel)">취소</button>
                 </div>
               </form>
+          </div>
           </div>
         </section>
       </div>
@@ -398,7 +403,7 @@ export default {
       }
       this.editingHotel = null;
     },
-    
+
     // --- 호텔 관리 ---
     openCreateForm() {
       this.editingHotel = null;
@@ -603,7 +608,7 @@ export default {
 .main-content>section{padding:30px}
 .main-content h2{margin:0;font-size:24px;color:#111827}
 .main-content h3{margin-top:20px;font-size:20px;color:#111827}
-.header-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:25px}
+.header-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:25px; margin-top: 25px;}
 .header-actions.secondary{margin-top:20px;margin-bottom:20px;padding-bottom:10px;border-bottom:1px solid #e5e7eb}
 .user-actions{display:flex;align-items:center;gap:15px}
 .user-name{font-weight:600;color:#374151}
@@ -642,7 +647,18 @@ export default {
 .actions button{margin-left:5px;padding:6px 10px;border:none;border-radius:6px;cursor:pointer;font-size:14px}
 .actions button:first-child{background:#3b82f6;color:#fff}
 .actions button:last-child{background:#ef4444;color:#fff}
-.form-container{background:#fff;padding:30px;border-radius:12px;border:1px solid #e5e7eb;max-width:800px;margin:0 auto}
+.form-container {
+  background: #fff;
+  padding: 30px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  /* max-width: 800px; <-- 이 줄 삭제 */
+  /* margin: 0 auto;   <-- 이 줄 삭제 */
+}
+.form-wrapper {
+  max-width: 800px; /* 폼의 최대 너비 설정 */
+  margin: 0 auto;   /* 페이지 중앙에 위치하도록 설정 */
+} 
 .form-group{margin-bottom:20px}
 .form-group label{display:block;font-size:14px;font-weight:600;margin-bottom:8px;color:#374151}
 .form-group input,.form-group select,.form-group textarea{width:100%;padding:12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;box-sizing:border-box}
