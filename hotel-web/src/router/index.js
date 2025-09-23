@@ -10,7 +10,7 @@ import OAuth2Redirect from "@/components/auth/OAuth2Redirect.vue";
 import MainPage from "@/components/page/MainPage.vue";
 import TermsPage from "@/components/page/Terms.vue";
 import PrivacyPage from "@/components/page/Privacy.vue";
-import Ownerpage from "@/components/Owner/Ownerpage.vue";
+import HotelOwner from "@/components/owner/HotelOwner.vue";
 
 const routes = [
   { path: "/", component: MainPage }, // 기본 경로를 MainPage로 설정
@@ -24,7 +24,7 @@ const routes = [
   { path: "/passwordReset", component: PasswordReset },
   { path: "/password-reset", component: PasswordReset }, // 추가 경로
   { path: "/oauth2/redirect", component: OAuth2Redirect },
-  { path: "/owner", component: Ownerpage, meta: { requiresAuth: true } }, // 업주 페이지(로그인 인증)
+  { path: "/hotelOwner", component: HotelOwner, meta: { requiresAuth: true } }, // 업주 페이지(로그인 인증)
 ];
 const router = createRouter({
   history: createWebHistory(),
