@@ -15,7 +15,7 @@ INSERT INTO amenity (name, description, icon_url, fee_type, is_active, category)
 
 -- 사용자 데이터 (1번: 호텔 소유주, 2~4번: 일반 고객)
 INSERT INTO users (id, name, email, password, phone, role, provider, created_on, address) VALUES
-(1, '홍길동', 'owner@egoda.com', '$2a$10$U/Ga3xnsdtt20xy2EgcBFe3zeYhMHBeTlfY8yidWBBBFwpZhYHE.C', '010-1234-5678', 'USER', 'LOCAL', NOW(), '서울'),
+(1, '홍길동', 'test@com.my', '$2a$10$U/Ga3xnsdtt20xy2EgcBFe3zeYhMHBeTlfY8yidWBBBFwpZhYHE.C', '010-1234-5678', 'USER', 'LOCAL', NOW(), '서울'),
 (2, '김여행', 'guest1@egoda.com', '$2a$10$f3bYV.N0k5sV1o8V.Zf8q.aG5h/bYJ/gYxN2T.9K.Z6.dYI.dZ/lC', '010-1111-1111', 'USER', 'LOCAL', NOW(), '부산'),
 (3, '박휴가', 'guest2@egoda.com', '$2a$10$f3bYV.N0k5sV1o8V.Zf8q.aG5h/bYJ/gYxN2T.9K.Z6.dYI.dZ/lC', '010-2222-2222', 'USER', 'LOCAL', NOW(), '강릉'),
 (4, '최체크인', 'guest3@egoda.com', '$2a$10$f3bYV.N0k5sV1o8V.Zf8q.aG5h/bYJ/gYxN2T.9K.Z6.dYI.dZ/lC', '010-3333-3333', 'USER', 'LOCAL', NOW(), '서울');

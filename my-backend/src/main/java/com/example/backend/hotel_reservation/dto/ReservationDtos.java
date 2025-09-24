@@ -67,7 +67,7 @@ public class ReservationDtos {
             this.guestName = user.getName(); // 예약자(손님) 이름
             this.guestPhone = user.getPhone();
             this.hotelName = room.getHotel().getName();
-            this.roomType = room.getRoomType().name();
+            this.roomType = room.getRoomType().toString();
             // Instant를 LocalDate로 변환
             this.checkInDate = reservation.getStartDate().atZone(ZoneId.systemDefault()).toLocalDate();
             this.checkOutDate = reservation.getEndDate().atZone(ZoneId.systemDefault()).toLocalDate();

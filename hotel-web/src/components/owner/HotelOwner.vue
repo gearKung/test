@@ -204,16 +204,16 @@
               <div class="form-group">
                 <label>이미지 (첫 번째 이미지가 대표 이미지)</label>
                 <input type="file" @change="handleHotelFileChange" multiple accept="image/*" class="file-input">
-                <div class="image-preview-grid">
-                  <div v-for="(url, index) in hotelForm.imageUrls" :key="'url-' + index" class="image-preview-item">
-                    <img :src="url" alt="기존 이미지"/>
-                    <button type="button" class="btn-remove-img" @click="removeHotelImage('url', index)">X</button>
-                  </div>
-                  <div v-for="(file, index) in hotelImageFiles" :key="'file-' + index" class="image-preview-item">
-                    <img :src="file.preview" alt="새 이미지"/>
-                    <button type="button" class="btn-remove-img" @click="removeHotelImage('file', index)">X</button>
-                  </div>
-                </div>
+  
+                <draggable v-model="editableImages" item-key="src" class="image-preview-grid draggable-area" ghost-class="ghost">
+                  <template #item="{ element, index }">
+                    <div class="image-preview-item">
+                      <img :src="element.src" alt="이미지 프리뷰"/>
+                      <span v-if="index === 0" class="main-photo-badge">대표</span>
+                      <button type="button" class="btn-remove-img" @click="removeHotelImage(element, index)">X</button>
+                    </div>
+                  </template>
+                </draggable>
               </div>
 
               <div class="form-group">
@@ -272,16 +272,16 @@
                 <div class="form-group">
                   <label>이미지 (첫 번째 이미지가 대표 이미지)</label>
                   <input type="file" @change="handleRoomFileChange" multiple accept="image/*" class="file-input">
-                  <div class="image-preview-grid">
-                    <div v-for="(url, index) in roomForm.imageUrls" :key="'url-' + index" class="image-preview-item">
-                      <img :src="url" alt="기존 이미지"/>
-                      <button type="button" class="btn-remove-img" @click="removeRoomImage('url', index)">X</button>
-                    </div>
-                    <div v-for="(file, index) in roomImageFiles" :key="'file-' + index" class="image-preview-item">
-                      <img :src="file.preview" alt="새 이미지"/>
-                      <button type="button" class="btn-remove-img" @click="removeRoomImage('file', index)">X</button>
-                    </div>
-                  </div>
+  
+                  <draggable v-model="editableImages" item-key="src" class="image-preview-grid draggable-area" ghost-class="ghost">
+                    <template #item="{ element, index }">
+                      <div class="image-preview-item">
+                        <img :src="element.src" alt="이미지 프리뷰"/>
+                        <span v-if="index === 0" class="main-photo-badge">대표</span>
+                        <button type="button" class="btn-remove-img" @click="removeRoomImage(element, index)">X</button>
+                      </div>
+                    </template>
+                  </draggable>
                 </div>
 
                 <div class="form-actions">
@@ -303,32 +303,34 @@
           </div>
         </div>
 
+        <div class="top-filter-container">
+            <select id="hotel-filter" v-model="filterHotel" class="filter-select">
+                <option value="ALL">모든 호텔</option>
+                <option v-for="hotel in myHotels" :key="hotel.id" :value="hotel.name">{{ hotel.name }}</option>
+            </select>
+        </div>
+
         <div class="reservations-content-compact">
           
           <div class="calendar-container">
-            <FullCalendar :options="calendarOptions" />
+            <FullCalendar ref="fullCalendar" :options="calendarOptions" />
           </div>
 
           <div class="reservation-sidebar">
             <h3>{{ selectedDate ? `${selectedDate} 예약` : '최근 예약' }}</h3>
             
             <div class="list-controls">
-                <input type="text" v-model="searchKeyword" placeholder="예약자명 검색" class="search-input"/>
-                <select v-model="filterHotel" class="filter-select">
-                    <option value="ALL">모든 호텔</option>
-                    <option v-for="hotel in myHotels" :key="hotel.id" :value="hotel.name">{{ hotel.name }}</option>
-                </select>
-                <select v-model="filterRoomType" class="filter-select">
-                    <option value="ALL">모든 객실</option>
-                    <option v-for="roomType in uniqueRoomTypes" :key="roomType" :value="roomType">{{ roomType }}</option>
-                </select>
-                <select v-model="filterStatus" class="filter-select">
-                    <option value="ALL">전체 예약</option>
-                    <option value="COMPLETED">예약 완료</option>
-                    <option value="CANCELLED">예약 취소</option>
-                </select>
+              <input type="text" v-model="searchKeyword" placeholder="예약자명 검색" class="search-input"/>
+              <select v-model="filterRoomType" class="filter-select">
+                  <option value="ALL">모든 객실</option>
+                  <option v-for="roomType in uniqueRoomTypes" :key="roomType" :value="roomType">{{ roomType }}</option>
+              </select>
+              <select v-model="filterStatus" class="filter-select">
+                  <option value="COMPLETED">예약 완료</option>
+                  <option value="CANCELLED">예약 취소</option>
+                  <option value="ALL">모든 상태</option>
+              </select>
             </div>
-
 
             <ul class="reservation-list">
               <li v-for="reservation in filteredReservations" :key="reservation.id" class="reservation-card" @click="showReservationDetails(reservation)">
@@ -338,7 +340,7 @@
                 </div>
                 <div class="card-body">
                   <p>{{ reservation.roomType }}</p>
-                  <p>{{ reservation.checkIn }} ~ {{ reservation.checkOut }}</p>
+                  <p>{{ reservation.checkInDate }} ~ {{ reservation.checkOutDate }}</p>
                 </div>
               </li>
               <li v-if="filteredReservations.length === 0" class="no-reservations">
@@ -362,7 +364,7 @@
             <div class="modal-item"><strong>연락처:</strong><span>{{ selectedReservation.guestPhone }}</span></div>
             <div class="modal-item"><strong>호텔:</strong><span>{{ selectedReservation.hotelName }}</span></div>
             
-            <div class="modal-item"><strong>객실 타입:</strong><span>{{ selectedReservation.roomName }}</span></div>
+            <div class="modal-item"><strong>객실 타입:</strong><span>{{ selectedReservation.roomType }}</span></div>
 
             <div class="modal-item full-width"><strong>체크인/아웃:</strong><span>{{ selectedReservation.checkInDate }} ~ {{ selectedReservation.checkOutDate }} ({{ selectedReservation.nights }}박)</span></div>
             
@@ -467,72 +469,60 @@ import axios from "axios";
 import FullCalendar from '@fullcalendar/vue3';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
+import draggable from 'vuedraggable';
 
 export default {
   components: {
-    FullCalendar
+    FullCalendar,
+    draggable,
   },
   data() {
     return {
-      activeMenu: "dashboard",
-      activeTab: 'check-in', // 'check-in' 또는 'check-out'
-      todaysCheckIns: [
-        { id: 1, name: '김민준', roomType: '디럭스룸' },
-        { id: 2, name: '이서아', roomType: '스위트룸' },
-        { id: 3, name: '박도윤', roomType: '스탠다드룸' },
-      ],
-      todaysCheckOuts: [
-        { id: 4, name: '최하은', roomType: '디럭스룸' },
-        { id: 5, name: '정시우', roomType: '디럭스룸' },
-      ],
-      recentReservations: [
-        { id: 1, name: '강지안', roomType: '스위트룸', timeAgo: '5분 전' },
-        { id: 2, name: '윤채원', roomType: '디럭스룸', timeAgo: '1시간 전' },
-        { id: 3, name: '한이준', roomType: '스탠다드룸', timeAgo: '3시간 전' },
-      ],
-      recentReviews: [
-        { id: 1, name: '조하윤', rating: 5, comment: '정말 최고의 경험이었어요!' },
-        { id: 2, name: '서은우', rating: 4, comment: '위치가 정말 좋네요.' },
-      ],
-
+      activeMenu: 'dashboard',
       user: null,
       myHotels: [],
       selectedHotel: null,
       rooms: [],
       editingHotel: null,
       editingRoom: null,
-      
       hotelForm: {},
       roomForm: {},
-      
-      hotelImageFiles: [],
-      roomImageFiles: [],
+
+      editableImages: [], 
 
       allAmenities: [],
-
       currentView: 'list',
+      
+      // 예약 관련 상태
+      allReservations: [],
+      selectedReservation: null,
+      selectedDate: null,
+      searchKeyword: '',
+      filterStatus: 'COMPLETED',
+      filterHotel: 'ALL',
+      filterRoomType: 'ALL',
+      
+      isWheelScrolling: false,
+      wheelScrollTimer: null,
 
-      allReservations: [], // 나중에 API로 받을 모든 예약 데이터
-      selectedReservation: null, // 상세 보기 팝업에 표시할 예약 데이터
-      selectedDate: null, // 캘린더에서 선택한 날짜 (YYYY-MM-DD 형식)
-      searchKeyword: '', // 검색어
-      filterStatus: 'ALL', // 예약 상태 필터용
-      filterHotel: 'ALL', // 호텔 필터용
-      filterRoomType: 'ALL', // 객실 타입 필터용
-
+      // 캘린더 옵션
       calendarOptions: {
-        plugins: [ dayGridPlugin, interactionPlugin ],
+        plugins: [dayGridPlugin, interactionPlugin],
         initialView: 'dayGridMonth',
         headerToolbar: {
-            left: 'prev,next today',
-            center: 'title',
-            right: 'dayGridMonth,dayGridWeek'
+          left: 'prev,next today',
+          center: 'title',
+          right: 'dayGridMonth,dayGridWeek'
         },
         locale: 'ko',
-        events: [],
+        events: [], // 이벤트는 watch를 통해 동적으로 채워집니다.
         dateClick: this.handleDateClick,
-        // ✅ [추가] 한 날짜에 이벤트가 3개를 초과하면 +more 링크로 표시
         dayMaxEvents: 3,
+        views: {
+          dayGridWeek: {
+            dayMaxEvents: 10
+          }
+        },
       },
 
       allReviews: [],
@@ -541,7 +531,13 @@ export default {
         hotel: 'ALL',
         rating: 'ALL',
         replied: 'ALL',
-      }
+      },
+
+      activeTab: 'check-in',
+      todaysCheckIns: [ { id: 1, name: '김민준', roomType: '디럭스룸' } /* ... */ ],
+      todaysCheckOuts: [ { id: 4, name: '최하은', roomType: '디럭스룸' } /* ... */ ],
+      recentReservations: [ { id: 1, name: '강지안', roomType: '스위트룸', timeAgo: '5분 전' } /* ... */ ],
+      recentReviews: [ { id: 1, name: '조하윤', rating: 5, comment: '정말 최고의 경험이었어요!' } /* ... */ ],
     };
   },
   computed: {
@@ -549,14 +545,13 @@ export default {
       let reservations = this.allReservations;
 
       if (this.selectedDate) {
+        const selected = new Date(this.selectedDate);
+        selected.setHours(0,0,0,0);
         reservations = reservations.filter(r => {
           const checkIn = new Date(r.checkInDate);
-          const checkOut = new Date(r.checkOutDate);
-          const selected = new Date(this.selectedDate);
-          // 날짜 비교 시 시간은 무시하도록 설정
           checkIn.setHours(0,0,0,0);
+          const checkOut = new Date(r.checkOutDate);
           checkOut.setHours(0,0,0,0);
-          selected.setHours(0,0,0,0);
           return selected >= checkIn && selected < checkOut;
         });
       }
@@ -564,15 +559,12 @@ export default {
       if (this.filterStatus !== 'ALL') {
         reservations = reservations.filter(r => r.status === this.filterStatus);
       }
-
       if (this.filterHotel !== 'ALL') {
           reservations = reservations.filter(r => r.hotelName === this.filterHotel);
       }
-      
       if (this.filterRoomType !== 'ALL') {
-          reservations = reservations.filter(r => r.roomName === this.filterRoomType);
+          reservations = reservations.filter(r => r.roomType === this.filterRoomType);
       }
-      
       if (this.searchKeyword.trim() !== '') {
         const keyword = this.searchKeyword.toLowerCase();
         reservations = reservations.filter(r => 
@@ -583,7 +575,7 @@ export default {
       return reservations;
     },
     uniqueRoomTypes() {
-        const roomTypes = this.allReservations.map(r => r.roomName);
+        const roomTypes = this.allReservations.map(r => r.roomType);
         return [...new Set(roomTypes)];
     },
     filteredReviews() {
@@ -603,8 +595,52 @@ export default {
             }
         }
         return reviews;
-    }
+    },
+    filteredCalendarEvents() {
+      console.log("[Computed] 최근 예약 목록 필터링 결과를 캘린더에 반영합니다.");
+      
+      // 1. 이미 모든 필터링이 완료된 'filteredReservations' 결과를 가져옵니다.
+      const filteredList = this.filteredReservations;
+      
+      // 2. 이 결과를 FullCalendar 이벤트 형식으로 변환하기만 하면 됩니다.
+      return filteredList.map(r => ({
+            title: `${r.guestName} (${r.roomType})`,
+            start: r.checkInDate,
+            end: r.checkOutDate,
+            color: r.status === 'COMPLETED' ? '#10b981' : '#6b7280',
+            extendedProps: { reservation: r } 
+      }));
+    },
+    draggableHotelImages: {
+      get() {
+        // 기존 URL과 새로 추가된 파일들을 하나의 배열로 합쳐서 보여줍니다.
+        const urls = (this.hotelForm.imageUrls || []).map(url => ({ type: 'url', src: url }));
+        const files = (this.hotelImageFiles || []).map(file => ({ type: 'file', src: file.preview, fileObject: file }));
+        return [...urls, ...files];
+      },
+      set(newOrder) {
+        // 드래그 앤 드롭으로 순서가 바뀌면, 이 배열을 다시 두 종류로 분리하여 저장합니다.
+        this.hotelForm.imageUrls = newOrder.filter(img => img.type === 'url').map(img => img.src);
+        this.hotelImageFiles = newOrder.filter(img => img.type === 'file').map(img => img.fileObject);
+      }
+    },
+    draggableRoomImages: {
+      get() {
+        const urls = (this.roomForm.imageUrls || []).map(url => ({ type: 'url', src: url }));
+        const files = (this.roomImageFiles || []).map(file => ({ type: 'file', src: file.preview, fileObject: file }));
+        return [...urls, ...files];
+      },
+      set(newOrder) {
+        this.roomForm.imageUrls = newOrder.filter(img => img.type === 'url').map(img => img.src);
+        this.roomImageFiles = newOrder.filter(img => img.type === 'file').map(img => img.fileObject);
+      }
+    } 
   },
+
+
+
+
+
   methods: {
     // --- 공통 메소드 ---
     getAuthHeaders() {
@@ -721,26 +757,47 @@ export default {
     editHotel(hotel) {
       this.editingHotel = hotel;
       this.hotelForm = { ...hotel };
-      if (!this.hotelForm.amenityIds) this.hotelForm.amenityIds = [];
-      if (!this.hotelForm.imageUrls) this.hotelForm.imageUrls = [];
-      this.hotelImageFiles = [];
+      // ✅ 드래그앤드롭을 위한 통합 이미지 배열 생성
+      this.editableImages = (hotel.imageUrls || []).map(url => ({ type: 'url', src: url, id: url }));
       this.currentView = 'hotelForm';
     },
     handleHotelFileChange(event) {
       const files = Array.from(event.target.files);
-      files.forEach(file => { file.preview = URL.createObjectURL(file); });
-      this.hotelImageFiles.push(...files);
+      files.forEach(file => {
+        const preview = URL.createObjectURL(file);
+        // editableImages에 새 파일 정보 추가
+        this.editableImages.push({ type: 'file', src: preview, fileObject: file });
+        // newImageFiles에 실제 파일 객체 저장
+        this.newImageFiles.push(file);
+      });
     },
     removeHotelImage(type, index) {
-      if (type === 'url') this.hotelForm.imageUrls.splice(index, 1);
-      else this.hotelImageFiles.splice(index, 1);
+      // 통합 배열에서 이미지 제거
+      this.editableImages.splice(index, 1);
+      // 만약 제거한 이미지가 새로 추가된 파일이었다면, newImageFiles에서도 제거
+      if (imageToRemove.type === 'file') {
+        this.newImageFiles = this.newImageFiles.filter(f => f !== imageToRemove.fileObject);
+      }
     },
     handleHotelSubmit() {
+      // ✅ 수정된 제출 로직
       const formData = new FormData();
-      const hotelData = { ...this.hotelForm };
-      delete hotelData.files; 
-      formData.append('hotel', new Blob([JSON.stringify(hotelData)], { type: 'application/json' }));
-      this.hotelImageFiles.forEach(file => { formData.append('files', file); });
+      
+      // 1. 순서가 변경된 기존 이미지 URL들을 hotelForm에 업데이트
+      this.hotelForm.imageUrls = this.editableImages
+        .filter(img => img.type === 'url')
+        .map(img => img.src);
+
+      // 2. hotelForm 데이터를 JSON으로 변환하여 추가
+      formData.append('hotel', new Blob([JSON.stringify(this.hotelForm)], { type: 'application/json' }));
+      
+      // 3. 순서가 변경된 새 파일들을 추가
+      const newFilesInOrder = this.editableImages
+        .filter(img => img.type === 'file')
+        .map(img => img.fileObject);
+      newFilesInOrder.forEach(file => {
+        formData.append('files', file);
+      });
 
       if (this.editingHotel) this.updateHotel(formData);
       else this.createHotel(formData);
@@ -810,10 +867,13 @@ export default {
       this.currentView = 'roomForm';
     },
     editRoom(room) {
-      this.editingRoom = room;
+      this.editingRoom = { ...room };
       this.roomForm = { ...room };
-      if(!this.roomForm.imageUrls) this.roomForm.imageUrls = [];
-      this.roomImageFiles = [];
+      
+      // ✅ 드래그앤드롭을 위한 통합 이미지 배열 생성
+      this.editableImages = (room.imageUrls || []).map(url => ({ type: 'url', src: url }));
+      this.newImageFiles = [];
+      
       this.currentView = 'roomForm';
     },
     handleRoomFileChange(event) {
@@ -896,10 +956,10 @@ export default {
       }
     },
     handleDateClick(arg) {
-      // 날짜를 클릭하면 selectedDate를 업데이트하고, 검색/필터는 초기화
       this.selectedDate = arg.dateStr;
       this.searchKeyword = '';
-      this.filterStatus = 'ALL';
+      this.filterStatus = 'COMPLETED';
+      this.filterRoomType = 'ALL';
     },
     showReservationDetails(reservation) {
       this.selectedReservation = reservation;
@@ -907,6 +967,24 @@ export default {
     closeReservationDetails() {
       this.selectedReservation = null;
     },
+    handleWheelScroll(event) {
+      event.preventDefault();
+      if (this.isWheelScrolling) return;
+
+      this.isWheelScrolling = true;
+      if (this.$refs.fullCalendar) {
+        const calendarApi = this.$refs.fullCalendar.getApi();
+        if (event.deltaY < 0) {
+          calendarApi.prev();
+        } else {
+          calendarApi.next();
+        }
+      }
+      this.wheelScrollTimer = setTimeout(() => {
+        this.isWheelScrolling = false
+      }, 300);
+    },
+    
     // 임시 데이터 생성 및 캘린더 이벤트 업데이트
     loadMockReservations() {
       console.log("A. [Method] loadMockReservations 메서드가 호출되었습니다.");
@@ -937,6 +1015,7 @@ export default {
     closeReviewDetails() {
       this.selectedReview = null;
     },
+
     loadMockReviews() {
       this.allReviews = [
         { id: 1, reservation_id: 101, wrote_on: '2025-09-21', star_rating: 5, content: '객실이 정말 깨끗하고 바다 전망이 환상적이었어요! 직원분들도 모두 친절하셔서 편안하게 쉬다 갑니다. 다음에 또 방문할게요!', image: 'https://source.unsplash.com/random/800x600?hotel,view', hotelName: '강릉 씨마크 호텔', author: '김철수', reply: '소중한 후기 감사드립니다! 다음에도 최고의 경험을 선물해 드릴 수 있도록 노력하겠습니다.' },
@@ -949,43 +1028,56 @@ export default {
         const headers = this.getAuthHeaders();  
         if (!headers) return;
 
-        console.log(`[예약 조회] API 호출: /api/hotels/owner/${this.user.id}/reservations`);
         try {
             const response = await axios.get(`/api/hotels/owner/${this.user.id}/reservations`, { headers });
             
-            // PENDING 상태를 제외하고 데이터 가공
-            const processedData = response.data
+            this.allReservations = response.data
                 .filter(r => r.status !== 'PENDING')
                 .map(r => ({
                     ...r,
                     statusLabel: r.status === 'COMPLETED' ? '예약 완료' : '예약 취소'
                 }));
 
-            this.allReservations = processedData;
-            console.log("[예약 조회] API 응답 데이터 (가공 후):", this.allReservations);
-
-            // 캘린더 이벤트 업데이트
-            this.calendarOptions.events = this.allReservations.map(r => ({
-                title: `${r.guestName} (${r.roomName})`,
-                start: r.checkInDate,
-                end: r.checkOutDate,
-                color: r.status === 'COMPLETED' ? '#10b981' : '#6b7280',
-                // 모달에 원본 데이터 전달
-                extendedProps: { reservation: r } 
-            }));
-
         } catch (error) {
             console.error("[예약 조회] API 호출 실패:", error.response || error);
             alert("예약 정보를 불러오는 데 실패했습니다.");
         }
     },
+    
+  },
+  watch: {
+    // ✅ [추가] filteredCalendarEvents가 변경될 때마다 캘린더의 events 옵션을 업데이트합니다.
+    filteredCalendarEvents: {
+      handler(newEvents) {
+        this.calendarOptions.events = newEvents;
+      },
+      immediate: true
+    }
   },
   mounted() {
     this.checkLoginStatus();
     this.fetchAmenities();
     this.fetchReservations();
+
+    this.$nextTick(() => {
+        const calendarEl = this.$refs.fullCalendar?.$el;
+        if (calendarEl) {
+            // ✅ [수정] passive: false 옵션을 추가하여 preventDefault가 작동하도록 합니다.
+            calendarEl.addEventListener('wheel', this.handleWheelScroll, { passive: false });
+        }
+    });
+
+
     this.loadMockReviews();
   },
+  beforeUnmount() {
+    // ✅ 컴포넌트가 사라질 때 이벤트 리스너를 제거하여 메모리 누수 방지
+    clearTimeout(this.wheelScrollTimer);
+    const calendarEl = this.$refs.fullCalendar?.$el;
+    if (calendarEl) {
+        calendarEl.removeEventListener('wheel', this.handleWheelScroll);
+    }
+  }
 };
 </script>
 
@@ -1034,8 +1126,8 @@ export default {
   background: #374151;
 }
 .main-content {
-  margin-left: 220px;
-  width: calc(100% - 220px);
+  margin-left: 130px;
+  width: calc(100% - 130px);
   height: 100vh;
   padding: 0;
   box-sizing: border-box;
@@ -1465,29 +1557,63 @@ export default {
   display: flex;
   flex-direction: column;
   height: 100%;
-  /* ❗️ 부모(.main-content)의 padding을 무시하고 꽉 채우기 */
-  width: 100%;
-  padding: 30px 15px; /* 좌우 패딩 줄이기 */
+  padding: 30px 15px;
 }
-
+.top-filter-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  background-color: #fff;
+  padding: 15px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.top-filter-container label {
+  font-weight: 600;
+  font-size: 14px;
+}
+.top-filter-container .filter-select {
+  width: 250px;
+}
 .reservations-content-compact {
   display: flex;
-  gap: 20px; /* 캘린더와 사이드바 사이 간격 */
+  gap: 15px;
   flex-grow: 1;
   overflow: hidden;
+  height: 100%; /* 추가 */
 }
 
 .calendar-container {
-  flex: 1; /* 남는 공간을 모두 차지 */
-  min-width: 0; /* flex item의 축소 문제 방지 */
+  flex: 1;
+  min-width: 0;
   background: #fff;
   padding: 20px;
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  display: flex;       /* 추가 */
+  flex-direction: column; /* 추가 */
+}
+.calendar-container :deep(.fc) {
+  height: 100%;
 }
 
+/* ✅ 캘린더 헤더 레이아웃 깨짐 방지 */
+.calendar-container :deep(.fc-header-toolbar) {
+    display: flex;
+    justify-content: space-between;
+}
+.calendar-container :deep(.fc-toolbar-chunk) {
+    display: flex;
+    align-items: center;
+}
+.calendar-container :deep(.fc-toolbar-title) {
+    flex-shrink: 1; /* 공간이 부족하면 타이틀 너비가 줄어들도록 설정 */
+    margin: 0 1em; /* 좌우 여백 */
+    font-size: 1.5em;
+}
 .reservation-sidebar {
-  width: 320px; /* 오른쪽 사이드바 너비 고정 */
+  width: 320px;
   flex-shrink: 0;
   background: #fff;
   padding: 20px;
@@ -1496,7 +1622,6 @@ export default {
   display: flex;
   flex-direction: column;
 }
-
 .reservation-sidebar h3 {
   margin: 0 0 20px;
   padding-bottom: 15px;
@@ -1505,13 +1630,12 @@ export default {
 
 .list-controls {
   display: flex;
-  flex-direction: column; /* 세로 배치 */
+  flex-direction: column;
   gap: 10px;
   margin-bottom: 20px;
 }
-
 .search-input, .filter-select {
-  width: 100%; /* 너비 100% */
+  width: 100%;
   padding: 10px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
@@ -1522,9 +1646,9 @@ export default {
   list-style: none;
   padding: 0;
   margin: 0;
-  overflow-y: auto; /* 목록이 길어지면 스크롤 */
+  overflow-y: auto;
   flex-grow: 1;
-}
+} 
 
 /* ❗️ .reservation-card, .status-badge 등 나머지 스타일은 이전과 동일하므로 그대로 사용하시면 됩니다. */
 .reservation-card {
@@ -1954,4 +2078,28 @@ export default {
 .star-rating.small span { font-size: 14px; }
 .star-rating.small span.filled { color: #f59e0b; }
 .star-rating.small span:not(.filled) { color: #d1d5db; }
+/* 드래그 앤 드롭 영역 스타일 */
+.draggable-area {
+  cursor: grab;
+}
+
+/* 드래그 중인 아이템의 원래 자리를 표시하는 스타일 */
+.ghost {
+  opacity: 0.5;
+  background: #c8ebfb;
+}
+
+/* 이미지 아이템 위에 '대표' 배지 스타일 */
+.main-photo-badge {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  background-color: #3b82f6;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  z-index: 2;
+}
 </style>
