@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;
 
-import com.example.backend.domain.User;
+import com.example.backend.HotelOwner.domain.User;
 
 @Slf4j
 @Getter

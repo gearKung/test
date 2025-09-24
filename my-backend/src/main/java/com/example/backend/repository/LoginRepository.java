@@ -4,7 +4,8 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import com.example.backend.domain.User;
+
+import com.example.backend.HotelOwner.domain.User;
 
 public interface LoginRepository extends JpaRepository<User, Long> {
     

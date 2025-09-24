@@ -9,7 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import com.example.backend.domain.User;
+import com.example.backend.HotelOwner.domain.User;
 import com.example.backend.repository.LoginRepository;
 
 @Slf4j

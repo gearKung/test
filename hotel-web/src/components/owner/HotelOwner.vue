@@ -313,14 +313,22 @@
             <h3>{{ selectedDate ? `${selectedDate} 예약` : '최근 예약' }}</h3>
             
             <div class="list-controls">
-              <input type="text" v-model="searchKeyword" placeholder="예약자명, 객실 검색" class="search-input"/>
-              <select v-model="filterStatus" class="filter-select">
-                <option value="ALL">모든 상태</option>
-                <option value="COMPLETED">예약 완료</option>
-                <option value="PENDING">예약 대기</option>
-                <option value="CANCELLED">예약 취소</option>
-              </select>
+                <input type="text" v-model="searchKeyword" placeholder="예약자명 검색" class="search-input"/>
+                <select v-model="filterHotel" class="filter-select">
+                    <option value="ALL">모든 호텔</option>
+                    <option v-for="hotel in myHotels" :key="hotel.id" :value="hotel.name">{{ hotel.name }}</option>
+                </select>
+                <select v-model="filterRoomType" class="filter-select">
+                    <option value="ALL">모든 객실</option>
+                    <option v-for="roomType in uniqueRoomTypes" :key="roomType" :value="roomType">{{ roomType }}</option>
+                </select>
+                <select v-model="filterStatus" class="filter-select">
+                    <option value="ALL">전체 예약</option>
+                    <option value="COMPLETED">예약 완료</option>
+                    <option value="CANCELLED">예약 취소</option>
+                </select>
             </div>
+
 
             <ul class="reservation-list">
               <li v-for="reservation in filteredReservations" :key="reservation.id" class="reservation-card" @click="showReservationDetails(reservation)">
@@ -350,10 +358,14 @@
             <div class="modal-item"><strong>예약 번호:</strong><span>{{ selectedReservation.id }}</span></div>
             <div class="modal-item"><strong>예약 상태:</strong><span :class="`status-badge ${selectedReservation.status.toLowerCase()}`">{{ selectedReservation.statusLabel }}</span></div>
             <div class="modal-item"><strong>예약자명:</strong><span>{{ selectedReservation.guestName }}</span></div>
+            
             <div class="modal-item"><strong>연락처:</strong><span>{{ selectedReservation.guestPhone }}</span></div>
             <div class="modal-item"><strong>호텔:</strong><span>{{ selectedReservation.hotelName }}</span></div>
-            <div class="modal-item"><strong>객실 타입:</strong><span>{{ selectedReservation.roomType }}</span></div>
-            <div class="modal-item full-width"><strong>체크인/아웃:</strong><span>{{ selectedReservation.checkIn }} ~ {{ selectedReservation.checkOut }} ({{ selectedReservation.nights }}박)</span></div>
+            
+            <div class="modal-item"><strong>객실 타입:</strong><span>{{ selectedReservation.roomName }}</span></div>
+
+            <div class="modal-item full-width"><strong>체크인/아웃:</strong><span>{{ selectedReservation.checkInDate }} ~ {{ selectedReservation.checkOutDate }} ({{ selectedReservation.nights }}박)</span></div>
+            
             <div class="modal-item"><strong>성인:</strong><span>{{ selectedReservation.adults }}명</span></div>
             <div class="modal-item"><strong>어린이:</strong><span>{{ selectedReservation.children }}명</span></div>
             <div class="modal-item full-width"><strong>요청사항:</strong><span>{{ selectedReservation.requests || '없음' }}</span></div>
@@ -504,16 +516,23 @@ export default {
       selectedReservation: null, // 상세 보기 팝업에 표시할 예약 데이터
       selectedDate: null, // 캘린더에서 선택한 날짜 (YYYY-MM-DD 형식)
       searchKeyword: '', // 검색어
-      filterStatus: 'ALL', // 필터링할 예약 상태
+      filterStatus: 'ALL', // 예약 상태 필터용
+      filterHotel: 'ALL', // 호텔 필터용
+      filterRoomType: 'ALL', // 객실 타입 필터용
 
       calendarOptions: {
         plugins: [ dayGridPlugin, interactionPlugin ],
         initialView: 'dayGridMonth',
-        headerToolbar: { /* ... 기존과 동일 ... */ },
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,dayGridWeek'
+        },
         locale: 'ko',
-        events: [], 
-        // ✅ [추가] 캘린더의 날짜를 클릭했을 때 실행될 함수
-        dateClick: this.handleDateClick, 
+        events: [],
+        dateClick: this.handleDateClick,
+        // ✅ [추가] 한 날짜에 이벤트가 3개를 초과하면 +more 링크로 표시
+        dayMaxEvents: 3,
       },
 
       allReviews: [],
@@ -529,31 +548,43 @@ export default {
     filteredReservations() {
       let reservations = this.allReservations;
 
-      // 1. 날짜 필터링
       if (this.selectedDate) {
         reservations = reservations.filter(r => {
-          const checkIn = new Date(r.checkIn);
-          const checkOut = new Date(r.checkOut);
+          const checkIn = new Date(r.checkInDate);
+          const checkOut = new Date(r.checkOutDate);
           const selected = new Date(this.selectedDate);
+          // 날짜 비교 시 시간은 무시하도록 설정
+          checkIn.setHours(0,0,0,0);
+          checkOut.setHours(0,0,0,0);
+          selected.setHours(0,0,0,0);
           return selected >= checkIn && selected < checkOut;
         });
       }
       
-      // 2. 상태 필터링
       if (this.filterStatus !== 'ALL') {
         reservations = reservations.filter(r => r.status === this.filterStatus);
       }
+
+      if (this.filterHotel !== 'ALL') {
+          reservations = reservations.filter(r => r.hotelName === this.filterHotel);
+      }
       
-      // 3. 검색어 필터링
+      if (this.filterRoomType !== 'ALL') {
+          reservations = reservations.filter(r => r.roomName === this.filterRoomType);
+      }
+      
       if (this.searchKeyword.trim() !== '') {
         const keyword = this.searchKeyword.toLowerCase();
         reservations = reservations.filter(r => 
-          r.guestName.toLowerCase().includes(keyword) ||
-          r.roomType.toLowerCase().includes(keyword)
+          r.guestName.toLowerCase().includes(keyword)
         );
       }
       
       return reservations;
+    },
+    uniqueRoomTypes() {
+        const roomTypes = this.allReservations.map(r => r.roomName);
+        return [...new Set(roomTypes)];
     },
     filteredReviews() {
         let reviews = this.allReviews;
@@ -912,12 +943,47 @@ export default {
         { id: 2, reservation_id: 102, wrote_on: '2025-09-20', star_rating: 4, content: '수영장이 넓고 좋아서 아이들이 정말 좋아했어요. 다만 조식 종류가 조금 더 다양했으면 하는 아쉬움이 남네요.', image: 'https://source.unsplash.com/random/800x600?hotel,pool', hotelName: '파라다이스 호텔 부산', author: '박영희', reply: '' },
         { id: 3, reservation_id: 103, wrote_on: '2025-09-19', star_rating: 3, content: '위치는 좋았지만 방음이 잘 안돼서 조금 시끄러웠습니다. 시설은 전반적으로 만족합니다.', image: null, hotelName: '강릉 씨마크 호텔', author: '최유나', reply: '' },
       ];
-    }
+    },
+    async fetchReservations() {
+        if (!this.user) return;
+        const headers = this.getAuthHeaders();  
+        if (!headers) return;
+
+        console.log(`[예약 조회] API 호출: /api/hotels/owner/${this.user.id}/reservations`);
+        try {
+            const response = await axios.get(`/api/hotels/owner/${this.user.id}/reservations`, { headers });
+            
+            // PENDING 상태를 제외하고 데이터 가공
+            const processedData = response.data
+                .filter(r => r.status !== 'PENDING')
+                .map(r => ({
+                    ...r,
+                    statusLabel: r.status === 'COMPLETED' ? '예약 완료' : '예약 취소'
+                }));
+
+            this.allReservations = processedData;
+            console.log("[예약 조회] API 응답 데이터 (가공 후):", this.allReservations);
+
+            // 캘린더 이벤트 업데이트
+            this.calendarOptions.events = this.allReservations.map(r => ({
+                title: `${r.guestName} (${r.roomName})`,
+                start: r.checkInDate,
+                end: r.checkOutDate,
+                color: r.status === 'COMPLETED' ? '#10b981' : '#6b7280',
+                // 모달에 원본 데이터 전달
+                extendedProps: { reservation: r } 
+            }));
+
+        } catch (error) {
+            console.error("[예약 조회] API 호출 실패:", error.response || error);
+            alert("예약 정보를 불러오는 데 실패했습니다.");
+        }
+    },
   },
   mounted() {
     this.checkLoginStatus();
     this.fetchAmenities();
-    this.loadMockReservations();
+    this.fetchReservations();
     this.loadMockReviews();
   },
 };

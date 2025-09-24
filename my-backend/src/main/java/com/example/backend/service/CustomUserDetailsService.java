@@ -1,6 +1,6 @@
 package com.example.backend.service;
 
-import com.example.backend.domain.User;
+import com.example.backend.HotelOwner.domain.User;
 import com.example.backend.repository.LoginRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;

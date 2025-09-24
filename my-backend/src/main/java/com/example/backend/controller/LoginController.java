@@ -3,18 +3,15 @@ package com.example.backend.controller;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import com.example.backend.HotelOwner.domain.User;
 import com.example.backend.config.JwtUtil;
-import com.example.backend.domain.User;
 import com.example.backend.repository.LoginRepository;
-import com.example.backend.service.EmailService;
 import com.example.backend.service.LoginService;
 
 @Slf4j
