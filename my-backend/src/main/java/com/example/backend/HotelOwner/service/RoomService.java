@@ -25,7 +25,7 @@ public class RoomService {
     private final HotelRepository hotelRepository;
 
     @Transactional
-    public Room createRoom(Long hotelId, RoomDto roomDto, List<String> imageUrls, String userEmail) {
+    public RoomDto createRoom(Long hotelId, RoomDto roomDto, List<String> imageUrls, String userEmail) {
         
         log.info("3. [Service-객실 생성] createRoom 호출됨. Hotel ID: {}, 요청자: {}", hotelId, userEmail);
         if (!hotelRepository.existsByIdAndOwnerEmail(hotelId, userEmail)) {
@@ -58,8 +58,11 @@ public class RoomService {
             room.setImages(roomImages);
         }
 
+        Room savedRoom = roomRepository.save(room);
         log.info("   [Service-객실 생성] 객실 저장 완료");
-        return roomRepository.save(room);
+
+        // [수정] 저장된 엔티티를 DTO로 변환하여 반환
+        return RoomDto.fromEntity(savedRoom);
     }
 
     @Transactional(readOnly = true) // 트랜잭션 추가

@@ -210,9 +210,12 @@ public class HotelController {
                     .collect(Collectors.toList());
         }
 
-        Room newRoom = roomService.createRoom(hotelId, roomDto, imageUrls, userDetails.getUsername());
-        log.info("4. [Controller-객실 생성] 객실 생성 완료, Room ID: {}", newRoom.getId());
-        return ResponseEntity.ok(RoomDto.fromEntity(newRoom));
+        RoomDto newRoomDto = roomService.createRoom(hotelId, roomDto, imageUrls, userDetails.getUsername());
+    
+        log.info("4. [Controller-객실 생성] 객실 생성 완료, Room ID: {}", newRoomDto.getId());
+        
+        // [수정] 받은 DTO를 바로 반환
+        return ResponseEntity.ok(newRoomDto);
     }
 
 

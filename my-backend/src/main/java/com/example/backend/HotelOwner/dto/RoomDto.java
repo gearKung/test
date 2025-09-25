@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 import com.example.backend.HotelOwner.domain.Room;
 import com.example.backend.HotelOwner.domain.RoomImage;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -29,7 +30,11 @@ public class RoomDto {
     private Integer capacityMax;
     private int price;
     private int roomCount;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "HH:mm")
     private LocalTime checkInTime;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "HH:mm")
     private LocalTime checkOutTime;
 
     // Room 엔티티를 RoomDto로 변환하는 정적 메서드

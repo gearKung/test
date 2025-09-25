@@ -68,6 +68,7 @@ public class Room {
     @Column(name = "check_out_time", nullable = false)
     private LocalTime checkOutTime;
 
+    @Builder.Default
     @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<RoomImage> images = new ArrayList<>();
 

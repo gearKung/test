@@ -314,6 +314,11 @@
                 <option value="ALL">모든 호텔</option>
                 <option v-for="hotel in myHotels" :key="hotel.id" :value="hotel.name">{{ hotel.name }}</option>
             </select>
+
+            <select id="room-type-filter" v-model="filterRoomType" class="filter-select">
+                <option value="ALL">모든 객실</option>
+                <option v-for="roomType in allRoomTypes" :key="roomType" :value="roomType">{{ roomType }}</option>
+            </select>
         </div>
 
         <div class="reservations-content-compact">
@@ -323,14 +328,14 @@
           </div>
 
           <div class="reservation-sidebar">
-            <h3>{{ selectedDate ? `${selectedDate} 예약` : '최근 예약' }}</h3>
-            
+            <div class="sidebar-header">
+              <h3>{{ selectedDate ? `${selectedDate} 예약` : '최근 예약' }}</h3>
+              <button v-if="selectedDate" @click="clearDateFilter" class="btn-clear-filter">초기화</button>
+            </div>
+
             <div class="list-controls">
               <input type="text" v-model="searchKeyword" placeholder="예약자명 검색" class="search-input"/>
-              <select v-model="filterRoomType" class="filter-select">
-                  <option value="ALL">모든 객실</option>
-                  <option v-for="roomType in uniqueRoomTypes" :key="roomType" :value="roomType">{{ roomType }}</option>
-              </select>
+              
               <select v-model="filterStatus" class="filter-select">
                   <option value="COMPLETED">예약 완료</option>
                   <option value="CANCELLED">예약 취소</option>
@@ -512,6 +517,9 @@ export default {
       filterHotel: 'ALL',
       filterRoomType: 'ALL',
       
+      allRoomTypes: ['스위트룸', '디럭스룸', '스탠다드룸', '싱글룸', '트윈룸'],
+
+
       isWheelScrolling: false,
       wheelScrollTimer: null,
 
@@ -550,6 +558,9 @@ export default {
       recentReviews: [ { id: 1, name: '조하윤', rating: 5, comment: '정말 최고의 경험이었어요!' } /* ... */ ],
     };
   },
+
+
+
   computed: {
     filteredReservations() {
       let reservations = this.allReservations;
@@ -583,10 +594,6 @@ export default {
       }
       
       return reservations;
-    },
-    uniqueRoomTypes() {
-        const roomTypes = this.allReservations.map(r => r.roomType);
-        return [...new Set(roomTypes)];
     },
     filteredReviews() {
         let reviews = this.allReviews;
@@ -628,6 +635,9 @@ export default {
 
 
   methods: {
+    clearDateFilter() {
+      this.selectedDate = null;
+    },
     // --- 공통 메소드 ---
     getAuthHeaders() {
       const token = localStorage.getItem('token');
@@ -948,7 +958,7 @@ export default {
       const headers = this.getAuthHeaders();
       if (!headers) return;
       try {
-        await axios.post(`/api/hotels/${this.selectedHotel.id}/rooms`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+        await axios.post(`/api/hotels/${this.selectedHotel.id}/rooms`, formData, { headers});
         alert("객실이 등록되었습니다.");
         this.showRoomList(this.selectedHotel);
       } catch(err) {
@@ -961,7 +971,7 @@ export default {
       const headers = this.getAuthHeaders();
       if (!headers) return;
       try {
-        await axios.put(`/api/hotels/rooms/${this.editingRoom.id}`, formData,  { headers });
+        await axios.put(`/api/hotels/rooms/${this.editingRoom.id}`, formData, { headers });
         alert("객실 정보가 수정되었습니다.");
         this.showRoomList(this.selectedHotel);
       } catch(err) {
@@ -1599,7 +1609,7 @@ export default {
 .top-filter-container {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 15px; /* 필터 간 간격 */
   margin-bottom: 20px;
   background-color: #fff;
   padding: 15px;
@@ -1609,9 +1619,36 @@ export default {
 .top-filter-container label {
   font-weight: 600;
   font-size: 14px;
+  margin-right: -5px; /* 라벨과 select 박스 간격 줄임 */
 }
 .top-filter-container .filter-select {
-  width: 250px;
+  width: auto; /* 자동으로 너비 조절 */
+  min-width: 150px; /* 최소 너비 */
+}
+.reservation-sidebar .sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0 0 20px;
+  /* border-bottom: 1px solid #e5e7eb; */
+}
+
+.reservation-sidebar .sidebar-header h3 {
+  margin: 0; /* h3의 기본 마진 제거 */
+}
+.btn-clear-filter {
+  background: #e5e7eb;
+  color: #374151;
+  border: none;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color .2s;
+}
+.btn-clear-filter:hover {
+  background: #d1d5db;
 }
 .reservations-content-compact {
   display: flex;
