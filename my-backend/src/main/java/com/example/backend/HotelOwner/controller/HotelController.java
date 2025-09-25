@@ -24,6 +24,7 @@ import io.jsonwebtoken.Claims;
 import com.example.backend.HotelOwner.domain.Hotel;
 import com.example.backend.HotelOwner.domain.Room;
 import com.example.backend.HotelOwner.dto.AmenityDto;
+import com.example.backend.HotelOwner.dto.DashboardDto;
 import com.example.backend.HotelOwner.dto.HotelDto;
 import com.example.backend.HotelOwner.dto.RoomDto;
 import com.example.backend.HotelOwner.service.AmenityService;
@@ -320,5 +321,13 @@ public class HotelController {
         log.info("[Controller] ownerId {}의 예약 목록 조회 API 호출", ownerId);
         List<ReservationDtos.OwnerReservationResponse> reservations = hotelService.getReservationsByOwner(ownerId);
         return ResponseEntity.ok(reservations);
+    }
+
+    // 대시보드 매출 요약 API
+    @GetMapping("/dashboard/sales-summary")
+    public ResponseEntity<DashboardDto> getSalesSummary(@RequestHeader("Authorization") String authHeader) {
+        Long ownerId = getUserIdFromToken(authHeader);
+        DashboardDto summary = hotelService.getSalesSummary(ownerId);
+        return ResponseEntity.ok(summary);
     }
 }

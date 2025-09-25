@@ -1,5 +1,10 @@
 package com.example.backend.HotelOwner.service;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -14,6 +19,7 @@ import com.example.backend.HotelOwner.domain.HotelAmenity;
 import com.example.backend.HotelOwner.domain.HotelImage;
 import com.example.backend.HotelOwner.domain.Room;
 import com.example.backend.HotelOwner.domain.User;
+import com.example.backend.HotelOwner.dto.DashboardDto;
 import com.example.backend.HotelOwner.dto.HotelDto;
 import com.example.backend.HotelOwner.dto.RoomDto;
 import com.example.backend.HotelOwner.repository.AmenityRepository;
@@ -23,6 +29,7 @@ import com.example.backend.HotelOwner.repository.RoomRepository;
 import com.example.backend.hotel_reservation.domain.Reservation;
 import com.example.backend.hotel_reservation.dto.ReservationDtos;
 import com.example.backend.hotel_reservation.repository.ReservationRepository;
+import com.example.backend.payment.repository.PaymentRepository;
 import com.example.backend.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -40,6 +47,7 @@ public class HotelService {
     private final AmenityRepository amenityRepository;
     private final HotelAmenityRepository hotelAmenityRepository;
     private final ReservationRepository reservationRepository;
+    private final PaymentRepository paymentRepository;
 
     @Transactional
     public Hotel createHotel(HotelDto hotelDto, List<String> imageUrls, List<Long> amenityIds, Long ownerId) {
@@ -197,7 +205,7 @@ public class HotelService {
             .collect(Collectors.toList());
     }
 
-    // ✅ [추가] 호텔 소유주 ID로 모든 예약을 조회하는 서비스 메서드
+    // 호텔 소유주 ID로 모든 예약을 조회하는 서비스 메서드
     @Transactional(readOnly = true)
     public List<ReservationDtos.OwnerReservationResponse> getReservationsByOwner(Long ownerId) {
         // 1. 소유주의 호텔에 해당하는 모든 예약 조회
@@ -229,4 +237,61 @@ public class HotelService {
                 .collect(Collectors.toList());
     }
 
+
+    // 대시보드 관련
+    public DashboardDto getSalesSummary(Long ownerId) {
+        LocalDate today = LocalDate.now();
+        LocalDate yesterday = today.minusDays(1);
+
+        // 오늘 & 어제
+        long todaySales = getSalesForDate(ownerId, today);
+        long yesterdaySales = getSalesForDate(ownerId, yesterday);
+
+        // 이번 주 & 지난 주 (월요일 ~ 일요일 기준)
+        LocalDate thisWeekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate thisWeekEnd = today.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
+        long thisWeekSales = getSalesForDateRange(ownerId, thisWeekStart, thisWeekEnd);
+
+        LocalDate lastWeekStart = thisWeekStart.minusWeeks(1);
+        LocalDate lastWeekEnd = thisWeekEnd.minusWeeks(1);
+        long lastWeekSales = getSalesForDateRange(ownerId, lastWeekStart, lastWeekEnd);
+        
+        // 이번 달 & 지난 달
+        LocalDate thisMonthStart = today.withDayOfMonth(1);
+        LocalDate thisMonthEnd = today.with(TemporalAdjusters.lastDayOfMonth());
+        long thisMonthSales = getSalesForDateRange(ownerId, thisMonthStart, thisMonthEnd);
+
+        LocalDate lastMonth = today.minusMonths(1);
+        LocalDate lastMonthStart = lastMonth.withDayOfMonth(1);
+        LocalDate lastMonthEnd = lastMonth.with(TemporalAdjusters.lastDayOfMonth());
+        long lastMonthSales = getSalesForDateRange(ownerId, lastMonthStart, lastMonthEnd);
+
+        return DashboardDto.builder()
+                .todaySales(todaySales)
+                .thisWeekSales(thisWeekSales)
+                .thisMonthSales(thisMonthSales)
+                .salesChangeVsYesterday(calculateChangePercentage(todaySales, yesterdaySales))
+                .salesChangeVsLastWeek(calculateChangePercentage(thisWeekSales, lastWeekSales))
+                .salesChangeVsLastMonth(calculateChangePercentage(thisMonthSales, lastMonthSales))
+                .build();
+    }
+
+    private long getSalesForDate(Long ownerId, LocalDate date) {
+        LocalDateTime start = date.atStartOfDay();
+        LocalDateTime end = date.atTime(LocalTime.MAX);
+        return paymentRepository.sumCompletedPaymentsByOwnerAndDateRange(ownerId, start, end);
+    }
+
+    private long getSalesForDateRange(Long ownerId, LocalDate startDate, LocalDate endDate) {
+        LocalDateTime start = startDate.atStartOfDay();
+        LocalDateTime end = endDate.atTime(LocalTime.MAX);
+        return paymentRepository.sumCompletedPaymentsByOwnerAndDateRange(ownerId, start, end);
+    }
+
+    private double calculateChangePercentage(long current, long previous) {
+        if (previous == 0) {
+            return current > 0 ? 100.0 : 0.0; // 이전 매출이 0이면, 현재 매출이 있으면 100% 증가, 없으면 0%
+        }
+        return ((double) (current - previous) / previous) * 100;
+    }
 }

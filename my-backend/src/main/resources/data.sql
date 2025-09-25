@@ -56,3 +56,27 @@ INSERT INTO payment (id, order_id, amount, reservation_id, user_id, customer_nam
 (8, 'order_108', 900000, 108, 3, '박휴가', 'guest2@egoda.com', '010-2222-2222', 'CANCELLED'),
 (9, 'order_109', 360000, 109, 4, '최체크인', 'guest3@egoda.com', '010-3333-3333', 'COMPLETED'),
 (10, 'order_110', 500000, 110, 2, '김여행', 'guest1@egoda.com', '010-1111-1111', 'COMPLETED');
+
+ -- 9월 마지막 주 데이터 (주간 매출 테스트용)
+INSERT INTO reservation (id, user_id, room_id, num_rooms, num_adult, num_kid, start_date, end_date, status, created_at) VALUES
+(201, 2, 1, 1, 2, 0, '2025-09-22 00:00:00', '2025-09-24 00:00:00', 'COMPLETED', '2025-09-20 10:00:00'),
+(202, 3, 3, 1, 2, 1, '2025-09-23 00:00:00', '2025-09-25 00:00:00', 'COMPLETED', '2025-09-21 11:00:00'),
+(203, 4, 2, 1, 2, 0, '2025-09-24 00:00:00', '2025-09-25 00:00:00', 'COMPLETED', '2025-09-24 09:00:00'),
+(204, 2, 3, 2, 2, 0, '2025-09-24 00:00:00', '2025-09-26 00:00:00', 'CANCELLED', '2025-09-24 13:00:00');
+
+-- 10월 초 데이터 (일간/주간/월간 매출 테스트용)
+INSERT INTO reservation (id, user_id, room_id, num_rooms, num_adult, num_kid, start_date, end_date, status, created_at) VALUES
+(205, 3, 1, 1, 1, 0, '2025-10-01 00:00:00', '2025-10-03 00:00:00', 'COMPLETED', '2025-09-28 14:00:00'),
+(206, 4, 2, 1, 2, 1, '2025-10-03 00:00:00', '2025-10-06 00:00:00', 'COMPLETED', '2025-09-29 18:00:00'),
+(207, 2, 1, 1, 2, 0, '2025-10-04 00:00:00', '2025-10-05 00:00:00', 'COMPLETED', '2025-10-01 10:00:00');
+
+-- 10월 중순 데이터 (월간 매출 테스트용)
+INSERT INTO reservation (id, user_id, room_id, num_rooms, num_adult, num_kid, start_date, end_date, status, created_at) VALUES
+(208, 3, 2, 1, 2, 0, '2025-10-15 00:00:00', '2025-10-17 00:00:00', 'COMPLETED', '2025-10-10 12:00:00'),
+(209, 4, 3, 1, 1, 1, '2025-10-20 00:00:00', '2025-10-22 00:00:00', 'COMPLETED', '2025-10-15 20:00:00');
+
+-- 11월 데이터 (월간 매출 비교 테스트용)
+INSERT INTO reservation (id, user_id, room_id, num_rooms, num_adult, num_kid, start_date, end_date, status, created_at) VALUES
+(210, 2, 1, 1, 2, 0, '2025-11-01 00:00:00', '2025-11-03 00:00:00', 'COMPLETED', '2025-10-25 15:00:00'),
+(211, 3, 3, 1, 2, 0, '2025-11-05 00:00:00', '2025-11-08 00:00:00', 'COMPLETED', '2025-10-28 17:00:00'),
+(212, 4, 2, 1, 2, 2, '2025-11-10 00:00:00', '2025-11-11 00:00:00', 'COMPLETED', '2025-11-02 11:00:00');

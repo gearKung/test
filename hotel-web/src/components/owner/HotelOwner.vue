@@ -31,18 +31,24 @@
         <div class="dashboard-grid">
           <div class="stat-card">
             <h4>오늘 매출</h4>
-            <p>₩ 1,250,000</p>
-            <span class="comparison positive">+5.2% vs 어제</span>
+            <p>₩ {{ formatNumber(dashboardSummary.todaySales) }}</p>
+            <span :class="['comparison', getComparisonClass(dashboardSummary.salesChangeVsYesterday)]">
+              {{ getComparisonText(dashboardSummary.salesChangeVsYesterday) }} vs 어제
+            </span>
           </div>
           <div class="stat-card">
             <h4>이번 주 매출</h4>
-            <p>₩ 8,760,000</p>
-            <span class="comparison positive">+12.8% vs 지난주</span>
+            <p>₩ {{ formatNumber(dashboardSummary.thisWeekSales) }}</p>
+            <span :class="['comparison', getComparisonClass(dashboardSummary.salesChangeVsLastWeek)]">
+              {{ getComparisonText(dashboardSummary.salesChangeVsLastWeek) }} vs 지난주
+            </span>
           </div>
           <div class="stat-card">
             <h4>이번 달 매출</h4>
-            <p>₩ 34,800,000</p>
-            <span class="comparison negative">-2.1% vs 지난달</span>
+            <p>₩ {{ formatNumber(dashboardSummary.thisMonthSales) }}</p>
+            <span :class="['comparison', getComparisonClass(dashboardSummary.salesChangeVsLastMonth)]">
+              {{ getComparisonText(dashboardSummary.salesChangeVsLastMonth) }} vs 지난달
+            </span>
           </div>
         </div>
 
@@ -490,6 +496,15 @@ export default {
   data() {
     return {
       activeMenu: 'dashboard',
+      dashboardSummary: {
+        todaySales: 0,
+        thisWeekSales: 0,
+        thisMonthSales: 0,
+        salesChangeVsYesterday: 0,
+        salesChangeVsLastWeek: 0,
+        salesChangeVsLastMonth: 0,
+      },
+
       user: null,
       myHotels: [],
       selectedHotel: null,
@@ -635,6 +650,33 @@ export default {
 
 
   methods: {
+    async fetchDashboardSummary() {
+      const headers = this.getAuthHeaders();
+      if (!headers) return;
+      try {
+        const response = await axios.get('/api/hotels/dashboard/sales-summary', { headers });
+        this.dashboardSummary = response.data;
+      } catch (error) {
+        console.error("대시보드 요약 정보 조회 실패:", error);
+      }
+    },
+    formatNumber(num, fractionDigits = 0) {
+      if (typeof num !== 'number') return num;
+      return num.toLocaleString('ko-KR', {
+        minimumFractionDigits: fractionDigits,
+        maximumFractionDigits: fractionDigits,
+      });
+    },
+    getComparisonClass(change) {
+      if (change > 0) return 'positive';
+      if (change < 0) return 'negative';
+      return '';
+    },
+    getComparisonText(change) {
+      if (change === 0 || !isFinite(change)) return '-';
+      const sign = change > 0 ? '+' : '';
+      return `${sign}${this.formatNumber(change, 1)}%`;
+    },
     clearDateFilter() {
       this.selectedDate = null;
     },
