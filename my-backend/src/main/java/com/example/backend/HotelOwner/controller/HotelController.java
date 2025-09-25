@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -24,9 +25,11 @@ import io.jsonwebtoken.Claims;
 import com.example.backend.HotelOwner.domain.Hotel;
 import com.example.backend.HotelOwner.domain.Room;
 import com.example.backend.HotelOwner.dto.AmenityDto;
+import com.example.backend.HotelOwner.dto.DailySalesDto;
 import com.example.backend.HotelOwner.dto.DashboardDto;
 import com.example.backend.HotelOwner.dto.HotelDto;
 import com.example.backend.HotelOwner.dto.RoomDto;
+import com.example.backend.HotelOwner.dto.SalesChartRequestDto;
 import com.example.backend.HotelOwner.service.AmenityService;
 import com.example.backend.HotelOwner.service.FileStorageService;
 import com.example.backend.HotelOwner.service.HotelService;
@@ -329,5 +332,15 @@ public class HotelController {
         Long ownerId = getUserIdFromToken(authHeader);
         DashboardDto summary = hotelService.getSalesSummary(ownerId);
         return ResponseEntity.ok(summary);
+    }
+
+    // 대시보드 그래프용 일별 매출 데이터 API
+    @PostMapping("/dashboard/daily-sales")
+    public ResponseEntity<List<DailySalesDto>> getDailySales(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody SalesChartRequestDto requestDto) {
+        Long ownerId = getUserIdFromToken(authHeader);
+        List<DailySalesDto> dailySales = hotelService.getDailySales(ownerId, requestDto);
+        return ResponseEntity.ok(dailySales);
     }
 }

@@ -19,9 +19,11 @@ import com.example.backend.HotelOwner.domain.HotelAmenity;
 import com.example.backend.HotelOwner.domain.HotelImage;
 import com.example.backend.HotelOwner.domain.Room;
 import com.example.backend.HotelOwner.domain.User;
+import com.example.backend.HotelOwner.dto.DailySalesDto;
 import com.example.backend.HotelOwner.dto.DashboardDto;
 import com.example.backend.HotelOwner.dto.HotelDto;
 import com.example.backend.HotelOwner.dto.RoomDto;
+import com.example.backend.HotelOwner.dto.SalesChartRequestDto;
 import com.example.backend.HotelOwner.repository.AmenityRepository;
 import com.example.backend.HotelOwner.repository.HotelAmenityRepository;
 import com.example.backend.HotelOwner.repository.HotelRepository;
@@ -240,7 +242,8 @@ public class HotelService {
 
     // 대시보드 관련
     public DashboardDto getSalesSummary(Long ownerId) {
-        LocalDate today = LocalDate.now();
+        // LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.of(2025, 10, 5);
         LocalDate yesterday = today.minusDays(1);
 
         // 오늘 & 어제
@@ -293,5 +296,20 @@ public class HotelService {
             return current > 0 ? 100.0 : 0.0; // 이전 매출이 0이면, 현재 매출이 있으면 100% 증가, 없으면 0%
         }
         return ((double) (current - previous) / previous) * 100;
+    }
+
+    // 일별 매출 데이터를 조회하는 서비스 메소드
+    @Transactional(readOnly = true)
+    public List<DailySalesDto> getDailySales(Long ownerId, SalesChartRequestDto requestDto) {
+        LocalDateTime start = requestDto.getStartDate().atStartOfDay();
+        LocalDateTime end = requestDto.getEndDate().plusDays(1).atStartOfDay();
+
+        return paymentRepository.findDailySalesByOwner(
+            ownerId, 
+            start, 
+            end, 
+            requestDto.getHotelId(), 
+            requestDto.getRoomType()
+        );
     }
 }

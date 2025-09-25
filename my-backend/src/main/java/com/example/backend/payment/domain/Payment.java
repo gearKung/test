@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 
+import com.nimbusds.jose.crypto.impl.PRFParams;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -55,6 +57,9 @@ public class Payment {
 
     @Column(name = "receipt_url", nullable = true, columnDefinition = "TEXT")
     private String receiptUrl;
+
+    @Column(name = "payment_key", nullable = true, length = 100)
+    private String paymentKey;
 
     // 결제 상태를 나타내는 Enum
     public enum PaymentStatus {

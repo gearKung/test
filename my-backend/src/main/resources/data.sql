@@ -45,18 +45,19 @@ INSERT INTO reservation (id, user_id, room_id, num_rooms, num_adult, num_kid, st
 (109, 4, 3, 1, 1, 1, '2025-10-20 00:00:00', '2025-10-22 00:00:00', 'COMPLETED', NOW()),
 (110, 2, 1, 1, 2, 0, '2025-11-01 00:00:00', '2025-11-03 00:00:00', 'COMPLETED', NOW());
 
-INSERT INTO payment (id, order_id, amount, reservation_id, user_id, customer_name, email, phone, status) VALUES
-(1, 'order_101', 250000, 101, 2, '김여행', 'guest1@egoda.com', '010-1111-1111', 'COMPLETED'),
-(2, 'order_102', 500000, 102, 3, '박휴가', 'guest2@egoda.com', '010-2222-2222', 'COMPLETED'),
-(3, 'order_103', 450000, 103, 4, '최체크인', 'guest3@egoda.com', '010-3333-3333', 'COMPLETED'),
-(4, 'order_104', 1350000, 104, 2, '김여행', 'guest1@egoda.com', '010-1111-1111', 'CANCELLED'),
-(5, 'order_105', 180000, 105, 3, '박휴가', 'guest2@egoda.com', '010-2222-2222', 'COMPLETED'),
-(6, 'order_106', 360000, 106, 4, '최체크인', 'guest3@egoda.com', '010-3333-3333', 'COMPLETED'),
-(7, 'order_107', 500000, 107, 2, '김여행', 'guest1@egoda.com', '010-1111-1111', 'COMPLETED'),
-(8, 'order_108', 900000, 108, 3, '박휴가', 'guest2@egoda.com', '010-2222-2222', 'CANCELLED'),
-(9, 'order_109', 360000, 109, 4, '최체크인', 'guest3@egoda.com', '010-3333-3333', 'COMPLETED'),
-(10, 'order_110', 500000, 110, 2, '김여행', 'guest1@egoda.com', '010-1111-1111', 'COMPLETED');
-
+INSERT INTO payment (id, reservation_id, payment_method, base_price, total_price, tax, discount, status, created_at, receipt_url) VALUES
+(201, 201, 'CARD', 450000, 500000, 50000, 0, 'COMPLETED', '2025-09-20 10:05:00', 'http://receipt.com/201'),
+(202, 202, 'TRANSFER', 324000, 360000, 36000, 0, 'COMPLETED', '2025-09-21 11:05:00', 'http://receipt.com/202'),
+(203, 203, 'CARD', 405000, 450000, 45000, 0, 'COMPLETED', '2025-10-05 09:05:00', 'http://receipt.com/203'),
+(204, 204, 'CARD', 654545, 720000, 65455, 0, 'CANCELLED', '2025-09-24 13:05:00', 'http://receipt.com/204'),
+(205, 205, 'KAKAO_PAY', 454545, 500000, 45455, 0, 'COMPLETED', '2025-09-28 14:05:00', 'http://receipt.com/205'),
+(206, 206, 'NAVER_PAY', 1227273, 1350000, 122727, 0, 'COMPLETED', '2025-09-29 18:05:00', 'http://receipt.com/206'),
+(207, 207, 'CARD', 227273, 250000, 22727, 0, 'COMPLETED', '2025-10-01 10:05:00', 'http://receipt.com/207'),
+(208, 208, 'TRANSFER', 818182, 900000, 81818, 0, 'COMPLETED', '2025-10-10 12:05:00', 'http://receipt.com/208'),
+(209, 209, 'CARD', 327273, 360000, 32727, 0, 'COMPLETED', '2025-10-15 20:05:00', 'http://receipt.com/209'),
+(210, 210, 'KAKAO_PAY', 454545, 500000, 45455, 0, 'COMPLETED', '2025-10-25 15:05:00', 'http://receipt.com/210'),
+(211, 211, 'NAVER_PAY', 490909, 540000, 49091, 0, 'COMPLETED', '2025-10-28 17:05:00', 'http://receipt.com/211'),
+(212, 212, 'CARD', 409091, 450000, 40909, 0, 'COMPLETED', '2025-11-02 11:05:00', 'http://receipt.com/212');
  -- 9월 마지막 주 데이터 (주간 매출 테스트용)
 INSERT INTO reservation (id, user_id, room_id, num_rooms, num_adult, num_kid, start_date, end_date, status, created_at) VALUES
 (201, 2, 1, 1, 2, 0, '2025-09-22 00:00:00', '2025-09-24 00:00:00', 'COMPLETED', '2025-09-20 10:00:00'),

@@ -54,15 +54,39 @@
 
         <div class="chart-container">
           <div class="chart-header">
-            <h3>매출 분석</h3>
-            <div class="chart-filters">
+            <div class="chart-title-group">
+              <h3>매출 분석</h3>
+              <div class="chart-main-filters">
+                <select class="filter-select small">
+                  <option value="ALL">모든 호텔</option>
+                  <option v-for="hotel in myHotels" :key="hotel.id" :value="hotel.name">{{ hotel.name }}</option>
+                </select>
+                <select class="filter-select small">
+                  <option value="ALL">모든 객실</option>
+                  <option v-for="roomType in allRoomTypes" :key="roomType" :value="roomType">{{ roomType }}</option>
+                </select>
+                <flat-pickr
+                  v-model="chartDateRange"
+                  :config="chartDateConfig"
+                  placeholder="날짜 범위 선택"
+                  class="date-picker-placeholder small"
+                />
+              </div>
+            </div>
+
+            <div class="chart-period-filters">
               <button class="filter-btn active">최근 7일</button>
               <button class="filter-btn">최근 30일</button>
-              <input type="text" placeholder="날짜 직접 선택" class="date-picker-placeholder" />
+              <button class="filter-btn reset-btn" @click="clearChartFilters">초기화</button>
             </div>
           </div>
-          <div class="chart-placeholder">
-            <p>기간별 매출 그래프 (개발 예정)</p>
+
+        
+          <div class="chart-container">
+            <div class="chart-placeholder">
+              <SalesChart v-if="chartData.length > 0" :sales-data="chartData" />
+              <p v-else>해당 기간에 표시할 데이터가 없습니다.</p>
+            </div>
           </div>
         </div>
 
@@ -482,16 +506,24 @@
 </template>
 
 <script>
+import flatPickr from 'vue-flatpickr-component';
+import 'flatpickr/dist/flatpickr.css';
+import { Korean } from "flatpickr/dist/l10n/ko.js";
+
 import axios from "axios";
 import FullCalendar from '@fullcalendar/vue3';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import draggable from 'vuedraggable';
+import flatpickr from 'flatpickr';
+import SalesChart from './SalesChart.vue'; 
 
 export default {
   components: {
     FullCalendar,
     draggable,
+    flatPickr,
+    SalesChart
   },
   data() {
     return {
@@ -504,6 +536,34 @@ export default {
         salesChangeVsLastWeek: 0,
         salesChangeVsLastMonth: 0,
       },
+
+      chartDateRange: [], // 선택된 날짜 범위를 저장할 배열
+      chartDateConfig: {
+        showMonths: 2,
+        mode: "range",        // 범위 선택 모드
+        dateFormat: "Y-m-d",  // 데이터 형식
+        altInput: true,       // 사용자에게 보여줄 대체 입력란 사용
+        altFormat: "Y년 m월 d일", // 보여줄 날짜 형식
+        locale: Korean,       // 한국어 설정
+        // onClose 콜백 등을 필요에 따라 추가할 수 있습니다.
+        onReady: (_, __, instance) => {
+          this.updateChartCalendarHeaders(instance);
+        },
+        onMonthChange: (_, __, instance) => {
+          this.$nextTick(() => {
+            this.updateChartCalendarHeaders(instance);
+          });
+        },
+      },
+
+      chartFilters: {
+        hotelId: null,
+        roomType: null,
+        dateRange: [],
+      },
+      chartData: [], // 그래프에 표시될 최종 데이터
+      activePeriod: '7days',
+
 
       user: null,
       myHotels: [],
@@ -677,9 +737,108 @@ export default {
       const sign = change > 0 ? '+' : '';
       return `${sign}${this.formatNumber(change, 1)}%`;
     },
-    clearDateFilter() {
-      this.selectedDate = null;
+    clearChartFilters() {
+      this.chartDateRange = []; // 날짜 선택 배열을 비웁니다.
+      // 필요하다면 호텔, 객실 필터도 여기서 초기화할 수 있습니다.
+      // this.chartHotelFilter = 'ALL';
+      // this.chartRoomFilter = 'ALL';
     },
+    updateChartCalendarHeaders(instance) {
+      if (!instance.calendarContainer) return;
+      
+      // 기본 연/월 선택 UI 숨기기
+      const yearInputs = instance.calendarContainer.querySelectorAll('.numInputWrapper, .arrowUp, .arrowDown');
+      yearInputs.forEach(el => { el.style.display = 'none'; });
+
+      const monthHeaders = instance.calendarContainer.querySelectorAll('.flatpickr-current-month');
+      monthHeaders.forEach((header, index) => {
+        header.innerHTML = ''; // 기존 내용 삭제
+
+        const now = new Date();
+        const baseMonth = (instance.currentMonth ?? now.getMonth()) + index;
+        const baseYear  = (instance.currentYear  ?? now.getFullYear());
+        const displayYear  = baseYear + Math.floor(baseMonth / 12);
+        const displayMonth = ((baseMonth % 12) + 12) % 12;
+
+        const monthNames = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+        
+        const textSpan = document.createElement('span');
+        textSpan.textContent = `${displayYear}년 ${monthNames[displayMonth]}`;
+        textSpan.style.cssText = 'font-size:16px; font-weight:600; color:#333;';
+        header.appendChild(textSpan);
+      });
+    },
+
+    async fetchChartData() {
+      const headers = this.getAuthHeaders();
+      if (!headers) return;
+
+      let startDate, endDate;
+      if (this.activePeriod === '7days') {
+        endDate = new Date();
+        startDate = new Date();
+        startDate.setDate(endDate.getDate() - 6);
+      } else if (this.activePeriod === '30days') {
+        endDate = new Date();
+        startDate = new Date();
+        startDate.setDate(endDate.getDate() - 29);
+      } else { // 날짜 선택
+        if (this.chartFilters.dateRange.length < 2) {
+            this.chartData = [];
+            return;
+        }
+        [startDate, endDate] = this.chartFilters.dateRange;
+      }
+      
+      // YYYY-MM-DD 형식으로 변환
+      const formatDate = (date) => date.toISOString().split('T')[0];
+
+      const requestBody = {
+        startDate: formatDate(startDate),
+        endDate: formatDate(endDate),
+        hotelId: this.chartFilters.hotelId === 'ALL' ? null : this.chartFilters.hotelId,
+        roomType: this.chartFilters.roomType === 'ALL' ? null : this.chartFilters.roomType,
+      };
+
+      try {
+        const response = await axios.post('/api/hotels/dashboard/daily-sales', requestBody, { headers });
+        this.chartData = this.fillMissingDates(response.data, startDate, endDate);
+      } catch (error) {
+        console.error("차트 데이터 조회 실패:", error);
+        this.chartData = [];
+      }
+    },
+    
+    // ✅ [추가] 데이터가 없는 날짜를 0으로 채워주는 헬퍼 함수
+    fillMissingDates(data, startDate, endDate) {
+      const salesMap = new Map(data.map(item => [item.date, item.totalSales]));
+      const filledData = [];
+      let currentDate = new Date(startDate);
+
+      while (currentDate <= endDate) {
+        const dateStr = currentDate.toISOString().split('T')[0];
+        filledData.push({
+          date: dateStr,
+          totalSales: salesMap.get(dateStr) || 0
+        });
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      return filledData;
+    },
+
+    // ✅ [추가] 기간 버튼 클릭 핸들러
+    setPeriod(period) {
+      this.activePeriod = period;
+      this.chartFilters.dateRange = []; // 기간 버튼 누르면 날짜 선택 초기화
+      this.fetchChartData();
+    },
+    clearChartFilters() {
+      this.chartFilters.hotelId = null;
+      this.chartFilters.roomType = null;
+      this.chartFilters.dateRange = [];
+      this.setPeriod('7days'); // 초기화 시 기본값인 7일로 설정
+    },
+
     // --- 공통 메소드 ---
     getAuthHeaders() {
       const token = localStorage.getItem('token');
@@ -1073,6 +1232,9 @@ export default {
         this.isWheelScrolling = false
       }, 300);
     },
+    clearDateFilter() {
+      this.selectedDate = null;
+    },
     
     // 임시 데이터 생성 및 캘린더 이벤트 업데이트
     loadMockReservations() {
@@ -1132,17 +1294,28 @@ export default {
             alert("예약 정보를 불러오는 데 실패했습니다.");
         }
     },
-    
   },
+
+
   watch: {
-    // ✅ [추가] filteredCalendarEvents가 변경될 때마다 캘린더의 events 옵션을 업데이트합니다.
+    //  filteredCalendarEvents가 변경될 때마다 캘린더의 events 옵션을 업데이트합니다.
     filteredCalendarEvents: {
       handler(newEvents) {
         this.calendarOptions.events = newEvents;
       },
       immediate: true
+    },
+    'chartFilters.hotelId': 'fetchChartData',
+    'chartFilters.roomType': 'fetchChartData',
+    'chartFilters.dateRange'(newRange) {
+        if(newRange.length === 2) {
+            this.activePeriod = 'custom'; // 날짜가 선택되면 activePeriod 변경
+            this.fetchChartData();
+        }
     }
   },
+
+
   mounted() {
     this.checkLoginStatus();
     this.fetchAmenities();
@@ -1151,16 +1324,18 @@ export default {
     this.$nextTick(() => {
         const calendarEl = this.$refs.fullCalendar?.$el;
         if (calendarEl) {
-            // ✅ [수정] passive: false 옵션을 추가하여 preventDefault가 작동하도록 합니다.
+            // passive: false 옵션을 추가하여 preventDefault가 작동하도록 합니다.
             calendarEl.addEventListener('wheel', this.handleWheelScroll, { passive: false });
         }
     });
 
+    this.fetchDashboardSummary();
+    this.fetchChartData();
 
-    this.loadMockReviews();
+    this.loadMockReviews(); //리뷰 임시데이터
   },
   beforeUnmount() {
-    // ✅ 컴포넌트가 사라질 때 이벤트 리스너를 제거하여 메모리 누수 방지
+    // 컴포넌트가 사라질 때 이벤트 리스너를 제거하여 메모리 누수 방지
     clearTimeout(this.wheelScrollTimer);
     const calendarEl = this.$refs.fullCalendar?.$el;
     if (calendarEl) {
@@ -1682,12 +1857,13 @@ export default {
   background: #e5e7eb;
   color: #374151;
   border: none;
-  padding: 4px 10px;
+  padding: 8px 14px;
   font-size: 12px;
   font-weight: 700;
   border-radius: 6px;
   cursor: pointer;
   transition: background-color .2s;
+  margin-bottom: 10px;
 }
 .btn-clear-filter:hover {
   background: #d1d5db;
@@ -2076,15 +2252,60 @@ export default {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  gap: 20px;
+}
+.chart-title-group {
+  display: flex;
+  align-items: center;
+  gap: 15px; /* 제목과 필터 그룹 사이 간격 */
+  flex-grow: 1; /* 남는 공간 차지 */
 }
 .chart-header h3 {
   margin: 0;
   font-size: 18px;
+  white-space: nowrap; /* 제목이 줄바꿈되지 않도록 */
 }
-.chart-filters {
+.chart-main-filters {
   display: flex;
+  align-items: center;
   gap: 10px;
 }
+
+.chart-period-filters {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0; 
+}
+
+.filter-select.small {
+  padding: 8px 12px;
+  font-size: 14px;
+  height: 38px; /* 다른 버튼들과 높이를 맞춤 */
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background-color: #fff;
+}
+
+/* flat-pickr 컴포넌트의 내부 input에 스타일을 적용하기 위해 :deep() 사용 */
+:deep(.date-picker-placeholder.small) {
+  padding: 8px 12px;
+  font-size: 14px;
+  height: 38px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background-color: #fff;
+  min-width: 260px;
+}
+.filter-btn.reset-btn {
+  background: #6b7280; /* 회색 계열 */
+  color: white;
+  border-color: #6b7280;
+}
+.filter-btn.reset-btn:hover {
+  background: #4b5563; /* 더 진한 회색 */
+  border-color: #4b5563;
+}
+
 .filter-btn {
   background: #f3f4f6;
   border: 1px solid #e5e7eb;
@@ -2093,15 +2314,10 @@ export default {
   cursor: pointer;
   font-size: 14px;
 }
-.filter-btn.active, .filter-btn:hover {
+.filter-btn:hover {
   background: #3b82f6;
   color: white;
   border-color: #3b82f6;
-}
-.date-picker-placeholder {
-  padding: 8px 14px;
-  border-radius: 6px;
-  border: 1px solid #e5e7eb;
 }
 .chart-placeholder {
   background: #f9fafb;
