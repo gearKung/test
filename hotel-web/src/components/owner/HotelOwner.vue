@@ -204,16 +204,19 @@
               <div class="form-group">
                 <label>이미지 (첫 번째 이미지가 대표 이미지)</label>
                 <input type="file" @change="handleHotelFileChange" multiple accept="image/*" class="file-input">
-  
-                <draggable v-model="editableImages" item-key="src" class="image-preview-grid draggable-area" ghost-class="ghost">
+
+                <draggable 
+                  v-model="hotelEditableImages" item-key="id" 
+                  class="image-preview-grid draggable-area" 
+                  ghost-class="ghost">
                   <template #item="{ element, index }">
-                    <div class="image-preview-item">
-                      <img :src="element.src" alt="이미지 프리뷰"/>
-                      <span v-if="index === 0" class="main-photo-badge">대표</span>
-                      <button type="button" class="btn-remove-img" @click="removeHotelImage(element, index)">X</button>
-                    </div>
+                      <div class="image-preview-item">
+                          <img :src="element.src" alt="이미지 프리뷰"/>
+                          <span v-if="index === 0" class="main-photo-badge">대표</span>
+                          <button type="button" class="btn-remove-img" @click="removeHotelImage(element, index)">X</button>
+                      </div>
                   </template>
-                </draggable>
+              </draggable>
               </div>
 
               <div class="form-group">
@@ -273,15 +276,18 @@
                   <label>이미지 (첫 번째 이미지가 대표 이미지)</label>
                   <input type="file" @change="handleRoomFileChange" multiple accept="image/*" class="file-input">
   
-                  <draggable v-model="editableImages" item-key="src" class="image-preview-grid draggable-area" ghost-class="ghost">
+                  <draggable 
+                    v-model="roomEditableImages" item-key="id" 
+                    class="image-preview-grid draggable-area" 
+                    ghost-class="ghost">
                     <template #item="{ element, index }">
-                      <div class="image-preview-item">
-                        <img :src="element.src" alt="이미지 프리뷰"/>
-                        <span v-if="index === 0" class="main-photo-badge">대표</span>
-                        <button type="button" class="btn-remove-img" @click="removeRoomImage(element, index)">X</button>
-                      </div>
+                        <div class="image-preview-item">
+                            <img :src="element.src" alt="이미지 프리뷰"/>
+                            <span v-if="index === 0" class="main-photo-badge">대표</span>
+                            <button type="button" class="btn-remove-img" @click="removeRoomImage(element, index)">X</button>
+                        </div>
                     </template>
-                  </draggable>
+                </draggable>
                 </div>
 
                 <div class="form-actions">
@@ -488,10 +494,14 @@ export default {
       hotelForm: {},
       roomForm: {},
 
-      editableImages: [], 
+      hotelEditableImages: [],
+      roomEditableImages: [], 
+
+      newImageFiles: [],
+      deletedImageUrls: [],
 
       allAmenities: [],
-      currentView: 'list',
+      currentView: 'list', 
       
       // 예약 관련 상태
       allReservations: [],
@@ -611,30 +621,6 @@ export default {
             extendedProps: { reservation: r } 
       }));
     },
-    draggableHotelImages: {
-      get() {
-        // 기존 URL과 새로 추가된 파일들을 하나의 배열로 합쳐서 보여줍니다.
-        const urls = (this.hotelForm.imageUrls || []).map(url => ({ type: 'url', src: url }));
-        const files = (this.hotelImageFiles || []).map(file => ({ type: 'file', src: file.preview, fileObject: file }));
-        return [...urls, ...files];
-      },
-      set(newOrder) {
-        // 드래그 앤 드롭으로 순서가 바뀌면, 이 배열을 다시 두 종류로 분리하여 저장합니다.
-        this.hotelForm.imageUrls = newOrder.filter(img => img.type === 'url').map(img => img.src);
-        this.hotelImageFiles = newOrder.filter(img => img.type === 'file').map(img => img.fileObject);
-      }
-    },
-    draggableRoomImages: {
-      get() {
-        const urls = (this.roomForm.imageUrls || []).map(url => ({ type: 'url', src: url }));
-        const files = (this.roomImageFiles || []).map(file => ({ type: 'file', src: file.preview, fileObject: file }));
-        return [...urls, ...files];
-      },
-      set(newOrder) {
-        this.roomForm.imageUrls = newOrder.filter(img => img.type === 'url').map(img => img.src);
-        this.roomImageFiles = newOrder.filter(img => img.type === 'file').map(img => img.fileObject);
-      }
-    } 
   },
 
 
@@ -749,59 +735,102 @@ export default {
 
     // --- 호텔 관리 ---
     openCreateForm() {
-      this.editingHotel = null;
-      this.hotelForm = { starRating: 5, country: "대한민국", imageUrls: [], amenityIds: [] };
-      this.hotelImageFiles = [];
-      this.currentView = 'hotelForm';
+      this.editingHotel = null; // 수정 모드가 아님을 명확히 함
+      // 새 호텔 정보를 입력받을 빈 객체로 초기화
+      this.hotelForm = {
+        name: '',
+        businessId: null,
+        address: '',
+        country: "대한민국",
+        starRating: 5,
+        description: '',
+        amenityIds: []
+      };
+      // 이미지 관련 배열들도 모두 비워줌
+      this.hotelEditableImages = [];
+      this.newImageFiles = [];
+      this.deletedImageUrls = [];
+      this.currentView = 'hotelForm'; 
     },
     editHotel(hotel) {
       this.editingHotel = hotel;
-      this.hotelForm = { ...hotel };
-      // ✅ 드래그앤드롭을 위한 통합 이미지 배열 생성
-      this.editableImages = (hotel.imageUrls || []).map(url => ({ type: 'url', src: url, id: url }));
+      this.hotelForm = JSON.parse(JSON.stringify(hotel)); // ✅ [추천] 깊은 복사로 변경
+      this.hotelEditableImages = (hotel.imageUrls || []).map(url => ({ type: 'url', src: url, id: url }));
+      this.newImageFiles = []; // 수정 시에는 새로 추가된 파일 목록 초기화
+      this.deletedImageUrls = []; // 수정 시에는 삭제할 URL 목록 초기화
       this.currentView = 'hotelForm';
     },
     handleHotelFileChange(event) {
       const files = Array.from(event.target.files);
       files.forEach(file => {
-        const preview = URL.createObjectURL(file);
-        // editableImages에 새 파일 정보 추가
-        this.editableImages.push({ type: 'file', src: preview, fileObject: file });
-        // newImageFiles에 실제 파일 객체 저장
-        this.newImageFiles.push(file);
+        // 미리보기를 위한 URL 생성
+        const previewUrl = URL.createObjectURL(file);
+        // vuedraggable에 표시될 객체 생성
+        const imageObject = {
+          type: 'file',
+          src: previewUrl,
+          fileObject: file,
+          id: previewUrl // 고유 key로 사용
+        };
+        this.hotelEditableImages.push(imageObject);
+        this.newImageFiles.push(file); // 새로 추가된 파일 목록에 저장
       });
+      event.target.value = ''; // 같은 파일 다시 선택 가능하도록 초기화
     },
-    removeHotelImage(type, index) {
-      // 통합 배열에서 이미지 제거
-      this.editableImages.splice(index, 1);
-      // 만약 제거한 이미지가 새로 추가된 파일이었다면, newImageFiles에서도 제거
-      if (imageToRemove.type === 'file') {
-        this.newImageFiles = this.newImageFiles.filter(f => f !== imageToRemove.fileObject);
+    removeHotelImage(imageToRemove, index) {
+      // 미리보기 목록에서 제거
+      this.hotelEditableImages.splice(index, 1);
+      
+      if (imageToRemove.type === 'url') {
+        // 기존에 있던 이미지(URL)라면 삭제 목록에 추가
+        this.deletedImageUrls.push(imageToRemove.src);
+      } else if (imageToRemove.type === 'file') {
+        // 새로 추가했던 파일이라면 newImageFiles 목록에서 제거
+        this.newImageFiles = this.newImageFiles.filter(
+          f => f !== imageToRemove.fileObject
+        );
+        // 메모리 관리를 위해 생성했던 미리보기 URL 해제
+        URL.revokeObjectURL(imageToRemove.src);
       }
     },
     handleHotelSubmit() {
-      // ✅ 수정된 제출 로직
       const formData = new FormData();
-      
-      // 1. 순서가 변경된 기존 이미지 URL들을 hotelForm에 업데이트
-      this.hotelForm.imageUrls = this.editableImages
+
+      // 1. 순서가 변경된 최종 이미지 URL 목록을 생성
+      const finalImageUrls = this.hotelEditableImages
         .filter(img => img.type === 'url')
         .map(img => img.src);
-
-      // 2. hotelForm 데이터를 JSON으로 변환하여 추가
-      formData.append('hotel', new Blob([JSON.stringify(this.hotelForm)], { type: 'application/json' }));
       
-      // 3. 순서가 변경된 새 파일들을 추가
-      const newFilesInOrder = this.editableImages
+      // hotelForm 데이터에 최종 URL 목록과 삭제할 URL 목록을 추가
+      const hotelData = {
+        ...this.hotelForm,
+        imageUrls: finalImageUrls, // 정렬된 기존 URL 목록
+        deletedUrls: this.deletedImageUrls // 삭제할 URL 목록
+      };
+      
+      // hotelForm 데이터를 JSON으로 변환하여 formData에 추가
+      formData.append('hotel', new Blob([JSON.stringify(hotelData)], { type: 'application/json' }));
+      
+      // 2. 새로 추가된 파일들을 순서대로 formData에 추가
+      const newFilesInOrder = this.hotelEditableImages
         .filter(img => img.type === 'file')
         .map(img => img.fileObject);
+        
       newFilesInOrder.forEach(file => {
         formData.append('files', file);
       });
 
-      if (this.editingHotel) this.updateHotel(formData);
-      else this.createHotel(formData);
+      // 디버깅을 위한 콘솔 출력
+      console.log("✅ 전송될 호텔 데이터:", hotelData);
+      console.log("✅ 전송될 새 파일:", newFilesInOrder);
+
+      if (this.editingHotel) {
+        this.updateHotel(formData);
+      } else {
+        this.createHotel(formData);
+      }
     },
+
     async createHotel(formData) {
       const headers = this.getAuthHeaders();
       if (!headers) return;
@@ -861,54 +890,69 @@ export default {
 
     // --- 객실 관리 ---
     openRoomCreateForm() {
-      this.editingRoom = null;
-      this.roomForm = { roomType: '스탠다드룸', checkInTime: '15:00', checkOutTime: '11:00', imageUrls: [] };
-      this.roomImageFiles = [];
-      this.currentView = 'roomForm';
+        this.editingRoom = null;
+        this.roomForm = { roomType: '스탠다드룸', checkInTime: '15:00', checkOutTime: '11:00' };
+        this.roomEditableImages = [];
+        this.newImageFiles = [];
+        this.deletedImageUrls = [];
+        this.currentView = 'roomForm';
     },
     editRoom(room) {
-      this.editingRoom = { ...room };
-      this.roomForm = { ...room };
-      
-      // ✅ 드래그앤드롭을 위한 통합 이미지 배열 생성
-      this.editableImages = (room.imageUrls || []).map(url => ({ type: 'url', src: url }));
-      this.newImageFiles = [];
-      
-      this.currentView = 'roomForm';
+        this.editingRoom = room;
+        this.roomForm = JSON.parse(JSON.stringify(room));
+        this.roomEditableImages = (room.imageUrls || []).map(url => ({ type: 'url', src: url, id: url }));
+        this.newImageFiles = [];
+        this.deletedImageUrls = [];
+        this.currentView = 'roomForm';
     },
     handleRoomFileChange(event) {
       const files = Array.from(event.target.files);
-      files.forEach(file => { file.preview = URL.createObjectURL(file); });
-      this.roomImageFiles.push(...files);
+      files.forEach(file => {
+        const previewUrl = URL.createObjectURL(file);
+        this.roomEditableImages.push({ type: 'file', src: previewUrl, fileObject: file, id: previewUrl });
+        this.newImageFiles.push(file);
+      });
+      event.target.value = '';
     },
-    removeRoomImage(type, index) {
-      if (type === 'url') this.roomForm.imageUrls.splice(index, 1);
-      else this.roomImageFiles.splice(index, 1);
+    removeRoomImage(imageToRemove, index) {
+      this.roomEditableImages.splice(index, 1);
+      if (imageToRemove.type === 'url') {
+        this.deletedImageUrls.push(imageToRemove.src);
+      } else {
+        this.newImageFiles = this.newImageFiles.filter(f => f !== imageToRemove.fileObject);
+        URL.revokeObjectURL(imageToRemove.src);
+      }
     },
     handleRoomSubmit() {
       const formData = new FormData();
-      const roomData = { ...this.roomForm };
-      delete roomData.files;
+      const finalImageUrls = this.roomEditableImages.filter(img => img.type === 'url').map(img => img.src);
+      const roomData = {
+        ...this.roomForm,
+        imageUrls: finalImageUrls,
+        deletedUrls: this.deletedImageUrls
+      };
+      
       formData.append('room', new Blob([JSON.stringify(roomData)], { type: 'application/json' }));
-      this.roomImageFiles.forEach(file => { formData.append('files', file); });
+      
+      const newFilesInOrder = this.roomEditableImages.filter(img => img.type === 'file').map(img => img.fileObject);
+      newFilesInOrder.forEach(file => { formData.append('files', file); });
+      
+      console.log("✅ 전송될 객실 데이터:", roomData);
+      console.log("✅ 전송될 새 파일:", newFilesInOrder);
 
       if (this.editingRoom) this.updateRoom(formData);
       else this.createRoom(formData);
     },
+
     async createRoom(formData) {
       const headers = this.getAuthHeaders();
       if (!headers) return;
-      console.log("1. [객실 생성] API 호출 시작:", `/api/hotels/${this.selectedHotel.id}/rooms`);
-      for (let [key, value] of formData.entries()) {
-        console.log(`   [객실 생성] FormData ${key}:`, value);
-      }
       try {
-        await axios.post(`/api/hotels/${this.selectedHotel.id}/rooms`, formData, { headers });
-        console.log("2. [객실 생성] API 호출 성공");
+        await axios.post(`/api/hotels/${this.selectedHotel.id}/rooms`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
         alert("객실이 등록되었습니다.");
         this.showRoomList(this.selectedHotel);
       } catch(err) {
-        console.error("3. [객실 생성] API 호출 실패:", err.response?.data || err.message);
+        console.error("객실 등록 실패:", err.response?.data || err.message);
         alert("객실 등록에 실패했습니다.");
       }
     },
@@ -916,32 +960,25 @@ export default {
     async updateRoom(formData) {
       const headers = this.getAuthHeaders();
       if (!headers) return;
-      console.log("1. [객실 수정] API 호출 시작:", `/api/hotels/rooms/${this.editingRoom.id}`);
-      for (let [key, value] of formData.entries()) {
-        console.log(`   [객실 수정] FormData ${key}:`, value);
-      }
       try {
-        await axios.post(`/api/hotels/rooms/${this.editingRoom.id}`, formData, { headers });
-        console.log("2. [객실 수정] API 호출 성공");
+        await axios.put(`/api/hotels/rooms/${this.editingRoom.id}`, formData,  { headers });
         alert("객실 정보가 수정되었습니다.");
         this.showRoomList(this.selectedHotel);
       } catch(err) {
-        console.error("3. [객실 수정] API 호출 실패:", err.response?.data || err.message);
+        console.error("객실 수정 실패:", err.response?.data || err.message);
         alert("객실 수정에 실패했습니다.");
       }
     },
-    async deleteRoom(roomId) {
+     async deleteRoom(roomId) {
       if (!confirm("객실을 삭제하시겠습니까?")) return;
       const headers = this.getAuthHeaders();
       if (!headers) return;
-      console.log("1. [객실 삭제] API 호출 시작:", `/api/hotels/rooms/${roomId}`);
       try {
         await axios.delete(`/api/hotels/rooms/${roomId}`, { headers });
-        console.log("2. [객실 삭제] API 호출 성공");
         alert("객실이 삭제되었습니다.");
         this.fetchRooms(this.selectedHotel.id);
       } catch(err) {
-        console.error("3. [객실 삭제] API 호출 실패:", err.response?.data || err.message);
+        console.error("객실 삭제 실패:", err.response?.data || err.message);
         alert("객실 삭제에 실패했습니다.");
       }
     },
