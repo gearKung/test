@@ -832,26 +832,26 @@ export default {
     },
     
     // ✅ [추가] 데이터가 없는 날짜를 0으로 채워주는 헬퍼 함수
-    // fillMissingDates(data, startDate, endDate) {
-    //   const salesMap = new Map(data.map(item => [item.date, item.totalSales]));
-    //   const filledData = [];
-    //   let currentDate = new Date(startDate);
+    fillMissingDates(data, startDate, endDate) {
+      const salesMap = new Map(data.map(item => [item.date, item.totalSales]));
+      const filledData = [];
+      let currentDate = new Date(startDate);
 
-    //   while (currentDate <= endDate) {
-    //     const y = currentDate.getFullYear();
-    //     const m = String(currentDate.getMonth() + 1).padStart(2, '0');
-    //     const d = String(currentDate.getDate()).padStart(2, '0');
-    //     const dateStr = `${y}-${m}-${d}`;
+      while (currentDate <= endDate) {
+        const y = currentDate.getFullYear();
+        const m = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const d = String(currentDate.getDate()).padStart(2, '0');
+        const dateStr = `${y}-${m}-${d}`;
 
-    //     filledData.push({
-    //       date: dateStr,
-    //       totalSales: salesMap.get(dateStr) || 0
-    //     });
+        filledData.push({
+          date: dateStr,
+          totalSales: salesMap.get(dateStr) || 0
+        });
         
-    //     currentDate.setDate(currentDate.getDate() + 1);
-    //   }
-    //   return filledData;
-    // },
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      return filledData;
+    },
 
     // 기간 버튼 클릭 핸들러
     setPeriod(period) {

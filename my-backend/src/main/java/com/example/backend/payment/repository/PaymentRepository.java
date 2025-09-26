@@ -20,11 +20,13 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
            "WHERE p.status = 'COMPLETED' AND p.reservationId IN " +
            "(SELECT r.id FROM Reservation r WHERE r.roomId IN " +
            "(SELECT rm.id FROM Room rm WHERE rm.hotel.owner.id = :ownerId) " +
-           "AND r.endDate >= :startDate AND r.endDate < :endDate)")
+           "AND r.endDate >= :startDate AND r.endDate < :endDate " +
+           "AND r.endDate <= :now)") // ✨ 체크아웃이 완료된 예약만 포함하도록 조건 추가
     long sumCompletedPaymentsByOwnerAndDateRange(
         @Param("ownerId") Long ownerId,
         @Param("startDate") Instant startDate,
-        @Param("endDate") Instant endDate);
+        @Param("endDate") Instant endDate,
+        @Param("now") Instant now);
 
 
     @Query("SELECT new com.example.backend.HotelOwner.dto.DailySalesDto(CAST(r.endDate AS LocalDate), SUM(p.basePrice)) " +
@@ -33,7 +35,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
            "AND r.roomId IN " +
            "(SELECT rm.id FROM Room rm WHERE rm.hotel.owner.id = :ownerId " +
            "AND (:hotelId IS NULL OR rm.hotel.id = :hotelId) " +
-       "AND (:roomType IS NULL OR rm.roomType = :roomType)) " +
+           "AND (:roomType IS NULL OR rm.roomType = :roomType)) " +
            "AND r.endDate >= :startDate AND r.endDate < :endDate " +
            "GROUP BY CAST(r.endDate AS LocalDate) " +
            "ORDER BY CAST(r.endDate AS LocalDate)")

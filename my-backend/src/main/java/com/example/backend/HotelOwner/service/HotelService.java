@@ -289,14 +289,14 @@ public class HotelService {
     private long getSalesForDate(Long ownerId, LocalDate date) {
         Instant start = date.atStartOfDay(ZoneId.systemDefault()).toInstant();
         Instant end = date.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
-        return paymentRepository.sumCompletedPaymentsByOwnerAndDateRange(ownerId, start, end);
+        return paymentRepository.sumCompletedPaymentsByOwnerAndDateRange(ownerId, start, end, Instant.now());
     }
 
 
     private long getSalesForDateRange(Long ownerId, LocalDate startDate, LocalDate endDate) {
         Instant start = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant();
         Instant end = endDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
-        return paymentRepository.sumCompletedPaymentsByOwnerAndDateRange(ownerId, start, end);
+        return paymentRepository.sumCompletedPaymentsByOwnerAndDateRange(ownerId, start, end, Instant.now());
     }
 
     private double calculateChangePercentage(long current, long previous) {
