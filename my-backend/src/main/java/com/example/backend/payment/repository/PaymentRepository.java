@@ -16,32 +16,32 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
 
     // 특정 소유자의 호텔에서 특정 기간 동안 완료된 결제 금액의 합계를 조회하는 쿼리
-    @Query("SELECT COALESCE(SUM(p.totalPrice), 0) FROM Payment p " +
+    @Query("SELECT COALESCE(SUM(p.basePrice), 0) FROM Payment p " +
            "WHERE p.status = 'COMPLETED' AND p.reservationId IN " +
            "(SELECT r.id FROM Reservation r WHERE r.roomId IN " +
            "(SELECT rm.id FROM Room rm WHERE rm.hotel.owner.id = :ownerId) " +
-           "AND r.startDate >= :startDate AND r.startDate < :endDate)")
+           "AND r.endDate >= :startDate AND r.endDate < :endDate)")
     long sumCompletedPaymentsByOwnerAndDateRange(
         @Param("ownerId") Long ownerId,
         @Param("startDate") Instant startDate,
         @Param("endDate") Instant endDate);
 
 
-    @Query("SELECT new com.example.backend.HotelOwner.dto.DailySalesDto(CAST(p.createdAt AS LocalDate), SUM(p.totalPrice)) " +
-           "FROM Payment p WHERE p.status = 'COMPLETED' " +
-           "AND p.reservationId IN " +
-           "(SELECT r.id FROM Reservation r WHERE r.roomId IN " +
+    @Query("SELECT new com.example.backend.HotelOwner.dto.DailySalesDto(CAST(r.endDate AS LocalDate), SUM(p.basePrice)) " +
+           "FROM Payment p JOIN Reservation r ON p.reservationId = r.id " +
+           "WHERE p.status = 'COMPLETED' " +
+           "AND r.roomId IN " +
            "(SELECT rm.id FROM Room rm WHERE rm.hotel.owner.id = :ownerId " +
            "AND (:hotelId IS NULL OR rm.hotel.id = :hotelId) " +
-           "AND (:roomType IS NULL OR rm.roomType = :roomType))) " +
-           "AND p.createdAt >= :startDate AND p.createdAt < :endDate " +
-           "GROUP BY CAST(p.createdAt AS LocalDate) " +
-           "ORDER BY CAST(p.createdAt AS LocalDate)")
+       "AND (:roomType IS NULL OR rm.roomType = :roomType)) " +
+           "AND r.endDate >= :startDate AND r.endDate < :endDate " +
+           "GROUP BY CAST(r.endDate AS LocalDate) " +
+           "ORDER BY CAST(r.endDate AS LocalDate)")
     List<DailySalesDto> findDailySalesByOwner(
         @Param("ownerId") Long ownerId,
-        @Param("startDate") LocalDateTime startDate,
-        @Param("endDate") LocalDateTime endDate,
+        @Param("startDate") Instant startDate,
+        @Param("endDate") Instant endDate,
         @Param("hotelId") Long hotelId,
-        @Param("roomType") Room.RoomType roomType // String -> Room.RoomType 으로 변경
+        @Param("roomType") Room.RoomType roomType
     );
 }

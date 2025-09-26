@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
@@ -248,8 +249,8 @@ public class HotelService {
 
     // 대시보드 관련
     public DashboardDto getSalesSummary(Long ownerId) {
-        // LocalDate today = LocalDate.now();
-        LocalDate today = LocalDate.of(2025, 10, 5);
+        LocalDate today = LocalDate.now();
+        // LocalDate today = LocalDate.of(2025, 10, 5);
         LocalDate yesterday = today.minusDays(1);
 
         // 오늘 & 어제
@@ -276,7 +277,7 @@ public class HotelService {
         long lastMonthSales = getSalesForDateRange(ownerId, lastMonthStart, lastMonthEnd);
 
         return DashboardDto.builder()
-                .todaySales(todaySales)
+                .todaySales(todaySales) 
                 .thisWeekSales(thisWeekSales)
                 .thisMonthSales(thisMonthSales)
                 .salesChangeVsYesterday(calculateChangePercentage(todaySales, yesterdaySales))
@@ -286,14 +287,15 @@ public class HotelService {
     }
 
     private long getSalesForDate(Long ownerId, LocalDate date) {
-        Instant start = date.atStartOfDay().toInstant(ZoneOffset.UTC);
-        Instant end = date.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+        Instant start = date.atStartOfDay(ZoneId.systemDefault()).toInstant();
+        Instant end = date.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
         return paymentRepository.sumCompletedPaymentsByOwnerAndDateRange(ownerId, start, end);
     }
 
+
     private long getSalesForDateRange(Long ownerId, LocalDate startDate, LocalDate endDate) {
-        Instant start = startDate.atStartOfDay().toInstant(ZoneOffset.UTC);
-        Instant end = endDate.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+        Instant start = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant();
+        Instant end = endDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
         return paymentRepository.sumCompletedPaymentsByOwnerAndDateRange(ownerId, start, end);
     }
 
@@ -307,8 +309,9 @@ public class HotelService {
     // 일별 매출 데이터를 조회하는 서비스 메소드
     @Transactional(readOnly = true)
     public List<DailySalesDto> getDailySales(Long ownerId, SalesChartRequestDto requestDto) {
-        LocalDateTime start = requestDto.getStartDate().atStartOfDay();
-        LocalDateTime end = requestDto.getEndDate().plusDays(1).atStartOfDay();
+
+        Instant start = requestDto.getStartDate().atStartOfDay(ZoneId.systemDefault()).toInstant();
+        Instant end = requestDto.getEndDate().plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
 
         return paymentRepository.findDailySalesByOwner(
             ownerId,
@@ -322,8 +325,8 @@ public class HotelService {
     //  대시보드 오늘의 현황 및 최근 예약을 위한 서비스 메소드
     public ReservationDtos.DashboardActivityResponse getDashboardActivity(Long ownerId) {
         // 테스트를 위해 오늘 날짜를 2025-10-05로 고정 (실제 운영 시 LocalDate.now() 사용)
-        LocalDate today = LocalDate.of(2025, 10, 5);
-        // LocalDate today = LocalDate.now();
+        // LocalDate today = LocalDate.of(2025, 10, 5);
+        LocalDate today = LocalDate.now();
 
         Instant startOfDay = today.atStartOfDay().toInstant(ZoneOffset.UTC);
         Instant endOfDay = today.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);

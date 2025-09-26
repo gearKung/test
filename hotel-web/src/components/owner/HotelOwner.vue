@@ -555,6 +555,17 @@ export default {
             this.updateChartCalendarHeaders(instance);
           });
         },
+        // onChange: (selectedDates) => {
+        // // 두 날짜가 다 선택되면 바로 chartFilters에 반영하고 조회
+        // if (selectedDates && selectedDates.length === 2) {
+        //   this.chartFilters.dateRange = [
+        //     new Date(selectedDates[0]),
+        //     new Date(selectedDates[1]),
+        //   ];
+        //   // watcher가 있어도 실사용에선 즉시 호출이 체감 좋아서 한 번 더 안전 호출
+        //   this.fetchChartData();
+        //   }
+        // },
       },
 
       chartFilters: {
@@ -775,13 +786,15 @@ export default {
       if (!headers) return;
 
       let startDate, endDate;
-
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      if (this.activePeriod === 'custom' && this.chartFilters.dateRange && this.chartFilters.dateRange.length === 2) {
+      // 1. 캘린더에서 날짜 범위를 직접 선택했는지 먼저 확인합니다.
+      if (this.chartFilters.dateRange && this.chartFilters.dateRange.length === 2) {
+        this.activePeriod = 'custom'; // 버튼 상태를 'custom'으로 변경
         [startDate, endDate] = this.chartFilters.dateRange.map(d => new Date(d));
       } else {
+        // 2. 직접 선택하지 않았다면, '최근 7일' 등 버튼 상태에 따라 날짜를 계산합니다.
         endDate = new Date(today);
         startDate = new Date(today);
         if (this.activePeriod === '7days') {
@@ -819,27 +832,32 @@ export default {
     },
     
     // ✅ [추가] 데이터가 없는 날짜를 0으로 채워주는 헬퍼 함수
-    fillMissingDates(data, startDate, endDate) {
-      const salesMap = new Map(data.map(item => [item.date, item.totalSales]));
-      const filledData = [];
-      let currentDate = new Date(startDate);
+    // fillMissingDates(data, startDate, endDate) {
+    //   const salesMap = new Map(data.map(item => [item.date, item.totalSales]));
+    //   const filledData = [];
+    //   let currentDate = new Date(startDate);
 
-      while (currentDate <= endDate) {
-        const dateStr = currentDate.toISOString().split('T')[0];
-        filledData.push({
-          date: dateStr,
-          totalSales: salesMap.get(dateStr) || 0
-        });
-        currentDate.setDate(currentDate.getDate() + 1);
-      }
-      return filledData;
-    },
+    //   while (currentDate <= endDate) {
+    //     const y = currentDate.getFullYear();
+    //     const m = String(currentDate.getMonth() + 1).padStart(2, '0');
+    //     const d = String(currentDate.getDate()).padStart(2, '0');
+    //     const dateStr = `${y}-${m}-${d}`;
+
+    //     filledData.push({
+    //       date: dateStr,
+    //       totalSales: salesMap.get(dateStr) || 0
+    //     });
+        
+    //     currentDate.setDate(currentDate.getDate() + 1);
+    //   }
+    //   return filledData;
+    // },
 
     // 기간 버튼 클릭 핸들러
     setPeriod(period) {
       this.activePeriod = period;
       this.chartFilters.dateRange = []; // 기간 버튼 선택 시 캘린더 선택은 초기화
-      this.fetchChartData();
+      // this.fetchChartData();
     },
     clearChartFilters() {
       this.chartFilters.hotelId = null;
@@ -1334,20 +1352,16 @@ export default {
   watch: {
     chartFilters: {
       handler(newFilters, oldFilters) {
-        // 날짜 범위 배열의 내용이 실제로 변경되었는지 확인합니다.
         const newDateRange = JSON.stringify(newFilters.dateRange);
-        const oldDateRange = JSON.stringify(oldFilters.dateRange);
+        const oldDateRange = oldFilters ? JSON.stringify(oldFilters.dateRange) : null;
 
-        if (newDateRange !== oldDateRange) {
-          if (newFilters.dateRange && newFilters.dateRange.length === 2) {
+        if (newDateRange !== oldDateRange && newFilters.dateRange && newFilters.dateRange.length > 0) {
             this.activePeriod = 'custom';
-          }
         }
         
-        // 어떤 필터가 변경되든 항상 데이터를 새로고침합니다.
         this.fetchChartData();
       },
-      deep: true  // 이 옵션이 객체 내부의 모든 변경을 감지하게 해줍니다.
+      deep: true
     },
 
     // 캘린더 이벤트 목록을 감시하는 부분은 그대로 유지합니다.
