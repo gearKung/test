@@ -415,8 +415,7 @@
             <div class="modal-item full-width"><strong>요청사항:</strong><span>{{ selectedReservation.requests || '없음' }}</span></div>
           </div>
           <div class="modal-actions">
-            <button class="btn-primary">예약 확정</button>
-            <button class="btn-danger">예약 취소</button>
+            <button class="btn-danger" @click="cancelReservation(selectedReservation.id)">예약 취소</button>
           </div>
         </div>
       </div>
@@ -1315,6 +1314,30 @@ export default {
       }));
       console.log("C. [Method] 캘린더 이벤트가 업데이트되었습니다:", this.calendarOptions.events);
     },
+    async cancelReservation(reservationId) {
+      if (!confirm("정말로 이 예약을 취소하시겠습니까?")) return;
+
+      const headers = this.getAuthHeaders();
+      if (!headers) return;
+
+      try {
+        // ✨ API 호출 경로를 HotelController에 맞게 수정합니다.
+        await axios.post(`/api/hotels/reservations/${reservationId}/owner-cancel`, {}, { headers });
+        
+        alert("예약이 성공적으로 취소되었습니다.");
+
+        // 모달을 닫고, 최신 데이터를 다시 불러와 화면을 갱신합니다.
+        this.closeReservationDetails();
+        await this.fetchReservations();
+        await this.fetchDashboardActivity();
+
+      } catch (error) {
+        console.error("예약 취소 실패:", error);
+        alert("예약 취소 중 오류가 발생했습니다.");
+      }
+    },
+    
+
     showReviewDetails(review) {
       // 원본 데이터를 수정하지 않기 위해 객체를 복사해서 사용
       this.selectedReview = { ...review };
@@ -1746,13 +1769,6 @@ export default {
   font-size: 14px;
   font-weight: 700;
 }
-.btn-primary {
-  background: #3b82f6;
-  color: #fff;
-}
-.btn-primary:hover {
-  background: #2563eb;
-}
 .btn-secondary {
   background: #e5e7eb;
   color: #374151;
@@ -2108,7 +2124,6 @@ export default {
   justify-content: flex-end;
   gap: 12px;
 }
-.btn-primary { background-color: #3b82f6; color: #fff; }
 .btn-danger { background-color: #ef4444; color: #fff; }
 .sidebar {
   display: flex;

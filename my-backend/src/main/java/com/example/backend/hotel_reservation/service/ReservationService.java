@@ -166,4 +166,35 @@ public class ReservationService {
                 .endDate(r.getEndDate())
                 .build();
     }
+
+    // 업주 전용 취소 메서드
+    @Transactional
+    public void cancelByOwner(Long reservationId) {
+        Reservation r = resRepo.findById(reservationId)
+                .orElseThrow(() -> new NoSuchElementException("예약을 찾을 수 없습니다."));
+
+        if (r.getStatus() == ReservationStatus.CANCELLED) {
+            log.warn("[OWNER CANCEL] 이미 취소된 예약입니다. reservationId={}", r.getId());
+            return; // 이미 취소된 경우 추가 작업 없이 반환
+        }
+
+        // PENDING 또는 COMPLETED 상태일 때만 재고를 복구합니다.
+        if (r.getStatus() == ReservationStatus.PENDING || r.getStatus() == ReservationStatus.COMPLETED) {
+            LocalDate ci = r.getStartDate().atZone(ZoneOffset.UTC).toLocalDate();
+            LocalDate co = r.getEndDate().atZone(ZoneOffset.UTC).toLocalDate();
+            List<LocalDate> stay = days(ci, co);
+
+            int qty = Optional.ofNullable(r.getNumRooms()).orElse(1);
+            for (LocalDate d : stay) {
+                RoomInventory ri = getOrCreateLocked(r.getRoomId(), d); // 비관적 락으로 동시성 제어
+                ri.setAvailableQuantity(ri.getAvailableQuantity() + qty);
+                invRepo.save(ri);
+            }
+            log.info("[OWNER CANCEL] 재고가 복구되었습니다. reservationId={}, qty={}", r.getId(), qty);
+        }
+
+        r.setStatus(ReservationStatus.CANCELLED);
+        resRepo.save(r);
+        log.info("[OWNER CANCEL] 업주에 의해 예약이 취소 처리되었습니다. reservationId={}", r.getId());
+    }
 }

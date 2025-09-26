@@ -36,6 +36,7 @@ import com.example.backend.HotelOwner.service.HotelService;
 import com.example.backend.HotelOwner.service.RoomService;
 import com.example.backend.config.JwtUtil;
 import com.example.backend.hotel_reservation.dto.ReservationDtos;
+import com.example.backend.hotel_reservation.service.ReservationService;
 
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +52,7 @@ public class HotelController {
     private final JwtUtil jwtUtil;
     private final FileStorageService fileStorageService;
     private final AmenityService amenityService;
+    private final ReservationService reservationService;
 
     @GetMapping("/amenities")
     public ResponseEntity<List<AmenityDto>> getAllAmenities() {
@@ -350,4 +352,13 @@ public class HotelController {
         ReservationDtos.DashboardActivityResponse activityData = hotelService.getDashboardActivity(ownerId);
         return ResponseEntity.ok(activityData);
     }
+
+    // 업주 예약 취소 API
+    @PostMapping("/reservations/{id}/owner-cancel")
+    public ResponseEntity<Void> cancelReservationByOwner(@PathVariable Long id) {
+        log.info("[Controller] 업주에 의한 예약 취소 API 호출, reservationId: {}", id);
+        reservationService.cancelByOwner(id);
+        return ResponseEntity.ok().build();
+    }
 }   
+

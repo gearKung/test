@@ -21,7 +21,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
            "(SELECT r.id FROM Reservation r WHERE r.roomId IN " +
            "(SELECT rm.id FROM Room rm WHERE rm.hotel.owner.id = :ownerId) " +
            "AND r.endDate >= :startDate AND r.endDate < :endDate " +
-           "AND r.endDate <= :now)") // ✨ 체크아웃이 완료된 예약만 포함하도록 조건 추가
+           "AND r.endDate <= :now)") // 체크아웃이 완료된 예약만 포함하도록 조건 추가
     long sumCompletedPaymentsByOwnerAndDateRange(
         @Param("ownerId") Long ownerId,
         @Param("startDate") Instant startDate,
@@ -46,4 +46,4 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
         @Param("hotelId") Long hotelId,
         @Param("roomType") Room.RoomType roomType
     );
-}
+} 
