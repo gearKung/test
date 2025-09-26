@@ -350,4 +350,4 @@ public class HotelController {
         ReservationDtos.DashboardActivityResponse activityData = hotelService.getDashboardActivity(ownerId);
         return ResponseEntity.ok(activityData);
     }
-}
+}   

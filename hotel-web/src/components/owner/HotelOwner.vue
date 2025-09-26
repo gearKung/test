@@ -859,12 +859,15 @@ export default {
         console.error("대시보드 활동 정보 조회 실패:", error);
       }
     },
+    
     formatTimeAgo(dateString) {
+      if (!dateString) return '';
       const now = new Date();
       const past = new Date(dateString);
       const diffInSeconds = Math.floor((now - past) / 1000);
       
       const minutes = Math.floor(diffInSeconds / 60);
+      if (minutes < 1) return '방금 전';
       if (minutes < 60) return `${minutes}분 전`;
       
       const hours = Math.floor(minutes / 60);
@@ -873,7 +876,6 @@ export default {
       const days = Math.floor(hours / 24);
       return `${days}일 전`;
     },
-
 
     // --- 공통 메소드 ---
     getAuthHeaders() {
@@ -1319,11 +1321,7 @@ export default {
             const response = await axios.get(`/api/hotels/owner/${this.user.id}/reservations`, { headers });
             
             this.allReservations = response.data
-                .filter(r => r.status !== 'PENDING')
-                .map(r => ({
-                    ...r,
-                    statusLabel: r.status === 'COMPLETED' ? '예약 완료' : '예약 취소'
-                }));
+                .filter(r => r.status !== 'PENDING'); // PENDING 상태 제외
 
         } catch (error) {
             console.error("[예약 조회] API 호출 실패:", error.response || error);
@@ -2423,7 +2421,7 @@ export default {
   margin: 0;
 }
 .guest-list {
-  max-height: 180px; /* 4명 분량의 높이 (li 1개당 약 45px) */
+  max-height: 225px; /* 4명 분량의 높이 (li 1개당 약 45px) */
   overflow-y: auto;
 }
 

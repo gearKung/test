@@ -1,14 +1,19 @@
 package com.example.backend.HotelOwner.service;
 
 import java.time.DayOfWeek;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -281,14 +286,14 @@ public class HotelService {
     }
 
     private long getSalesForDate(Long ownerId, LocalDate date) {
-        LocalDateTime start = date.atStartOfDay();
-        LocalDateTime end = date.atTime(LocalTime.MAX);
+        Instant start = date.atStartOfDay().toInstant(ZoneOffset.UTC);
+        Instant end = date.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
         return paymentRepository.sumCompletedPaymentsByOwnerAndDateRange(ownerId, start, end);
     }
 
     private long getSalesForDateRange(Long ownerId, LocalDate startDate, LocalDate endDate) {
-        LocalDateTime start = startDate.atStartOfDay();
-        LocalDateTime end = endDate.atTime(LocalTime.MAX);
+        Instant start = startDate.atStartOfDay().toInstant(ZoneOffset.UTC);
+        Instant end = endDate.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
         return paymentRepository.sumCompletedPaymentsByOwnerAndDateRange(ownerId, start, end);
     }
 
@@ -320,24 +325,53 @@ public class HotelService {
         LocalDate today = LocalDate.of(2025, 10, 5);
         // LocalDate today = LocalDate.now();
 
+        Instant startOfDay = today.atStartOfDay().toInstant(ZoneOffset.UTC);
+        Instant endOfDay = today.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+
         // 오늘의 체크인/체크아웃 조회
-        List<Reservation> checkIns = reservationRepository.findCheckInsForOwnerByDate(ownerId, today);
-        List<Reservation> checkOuts = reservationRepository.findCheckOutsForOwnerByDate(ownerId, today);
+        List<Reservation> checkIns = reservationRepository.findCheckInsForOwnerByDateRange(ownerId, startOfDay, endOfDay);
+        List<Reservation> checkOuts = reservationRepository.findCheckOutsForOwnerByDateRange(ownerId, startOfDay, endOfDay);
 
-        // 최근 예약 5건 조회
-        List<Reservation> recentReservations = reservationRepository.findTop5RecentReservationsForOwner(ownerId, PageRequest.of(0, 5));
+        // 최근 예약 3일전까지만 조회
+        LocalDateTime threeDaysAgo = LocalDateTime.now().minus(3, ChronoUnit.DAYS);
 
-        // DTO로 변환
+        List<Reservation> recentReservations = reservationRepository.findRecentReservationsForOwner(ownerId, threeDaysAgo, PageRequest.of(0, 5));
+
+        List<Reservation> allReservations = Stream.of(checkIns, checkOuts, recentReservations)
+            .flatMap(List::stream)
+            .collect(Collectors.toList());
+
+        if (allReservations.isEmpty()) {
+            return new ReservationDtos.DashboardActivityResponse(List.of(), List.of(), List.of());
+        }
+
+        List<Long> userIds = allReservations.stream().map(Reservation::getUserId).distinct().collect(Collectors.toList());
+        List<Long> roomIds = allReservations.stream().map(Reservation::getRoomId).distinct().collect(Collectors.toList());
+
+        Map<Long, User> userMap = userRepository.findAllById(userIds).stream().collect(Collectors.toMap(User::getId, user -> user));
+        Map<Long, Room> roomMap = roomRepository.findAllById(roomIds).stream().collect(Collectors.toMap(Room::getId, room -> room));
+
+        Function<Reservation, ReservationDtos.OwnerReservationResponse> toDto = reservation -> {
+            User user = userMap.get(reservation.getUserId());
+            Room room = roomMap.get(reservation.getRoomId());
+            if (user == null || room == null) return null;
+            // 위에서 추가한 fromEntity 정적 메서드를 사용합니다.
+            return ReservationDtos.OwnerReservationResponse.fromEntity(reservation, user, room);
+        };
+
         List<ReservationDtos.OwnerReservationResponse> checkInDtos = checkIns.stream()
-            .map(ReservationDtos.OwnerReservationResponse::fromEntity)
+            .map(toDto)
+            .filter(dto -> dto != null)
             .collect(Collectors.toList());
 
         List<ReservationDtos.OwnerReservationResponse> checkOutDtos = checkOuts.stream()
-            .map(ReservationDtos.OwnerReservationResponse::fromEntity)
+            .map(toDto)
+            .filter(dto -> dto != null)
             .collect(Collectors.toList());
             
         List<ReservationDtos.OwnerReservationResponse> recentReservationDtos = recentReservations.stream()
-            .map(ReservationDtos.OwnerReservationResponse::fromEntity)
+            .map(toDto)
+            .filter(dto -> dto != null)
             .collect(Collectors.toList());
 
         return new ReservationDtos.DashboardActivityResponse(checkInDtos, checkOutDtos, recentReservationDtos);

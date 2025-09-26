@@ -4,6 +4,7 @@ import lombok.*;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
@@ -62,6 +63,8 @@ public class ReservationDtos {
         private int children;
         private ReservationStatus status;
         private long nights;
+        private String statusLabel; 
+        private Instant createdAt; 
 
         public OwnerReservationResponse(Reservation reservation, User user, Room room) {
             this.id = reservation.getId();
@@ -76,6 +79,15 @@ public class ReservationDtos {
             this.children = reservation.getNumKid();
             this.status = reservation.getStatus();
             this.nights = ChronoUnit.DAYS.between(this.checkInDate, this.checkOutDate);
+
+            this.statusLabel = reservation.getStatus() == ReservationStatus.COMPLETED ? "예약 완료" : "예약 취소";
+            if (reservation.getCreatedAt() != null) {
+                this.createdAt = reservation.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant();
+            }
+        }
+
+        public static OwnerReservationResponse fromEntity(Reservation reservation, User user, Room room) {
+            return new OwnerReservationResponse(reservation, user, room);
         }
     }
 

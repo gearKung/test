@@ -37,7 +37,7 @@ public class Reservation {
     @Column(name="status", nullable=false)
     private ReservationStatus status; // PENDING/COMPLETED/CANCELLED
 
-    @Column(name="created_at")
+    @Column(name="created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @Column(name="expires_at")
@@ -45,4 +45,11 @@ public class Reservation {
 
     @Column(name="transaction_id")
     private String transactionId;
+
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+    }
 }
