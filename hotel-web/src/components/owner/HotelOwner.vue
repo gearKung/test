@@ -57,36 +57,36 @@
             <div class="chart-title-group">
               <h3>매출 분석</h3>
               <div class="chart-main-filters">
-                <select class="filter-select small">
-                  <option value="ALL">모든 호텔</option>
-                  <option v-for="hotel in myHotels" :key="hotel.id" :value="hotel.name">{{ hotel.name }}</option>
+                <select v-model="chartFilters.hotelId" class="filter-select small">
+                  <option :value="null">모든 호텔</option>
+                  <option v-for="hotel in myHotels" :key="hotel.id" :value="hotel.id">{{ hotel.name }}</option>
                 </select>
-                <select class="filter-select small">
-                  <option value="ALL">모든 객실</option>
+
+                <select v-model="chartFilters.roomType" class="filter-select small">
+                  <option :value="null">모든 객실</option>
                   <option v-for="roomType in allRoomTypes" :key="roomType" :value="roomType">{{ roomType }}</option>
                 </select>
+                
                 <flat-pickr
-                  v-model="chartDateRange"
+                  v-model="chartFilters.dateRange"
                   :config="chartDateConfig"
                   placeholder="날짜 범위 선택"
                   class="date-picker-placeholder small"
                 />
               </div>
             </div>
-
+            
             <div class="chart-period-filters">
-              <button class="filter-btn active">최근 7일</button>
-              <button class="filter-btn">최근 30일</button>
+              <button class="filter-btn" :class="{ active: activePeriod === '7days' }" @click="setPeriod('7days')">최근 7일</button>
+              <button class="filter-btn" :class="{ active: activePeriod === '30days' }" @click="setPeriod('30days')">최근 30일</button>
+              <button class="filter-btn" :class="{ active: activePeriod === '1year' }" @click="setPeriod('1year')">최근 1년</button>
               <button class="filter-btn reset-btn" @click="clearChartFilters">초기화</button>
             </div>
           </div>
-
-        
-          <div class="chart-container">
-            <div class="chart-placeholder">
-              <SalesChart v-if="chartData.length > 0" :sales-data="chartData" />
-              <p v-else>해당 기간에 표시할 데이터가 없습니다.</p>
-            </div>
+          
+          <div class="chart-placeholder">
+            <SalesChart v-if="chartData.length > 0" :sales-data="chartData" />
+            <p v-else>해당 기간에 표시할 데이터가 없습니다.</p>
           </div>
         </div>
 
@@ -774,30 +774,38 @@ export default {
       if (!headers) return;
 
       let startDate, endDate;
-      if (this.activePeriod === '7days') {
-        endDate = new Date();
-        startDate = new Date();
-        startDate.setDate(endDate.getDate() - 6);
-      } else if (this.activePeriod === '30days') {
-        endDate = new Date();
-        startDate = new Date();
-        startDate.setDate(endDate.getDate() - 29);
-      } else { // 날짜 선택
-        if (this.chartFilters.dateRange.length < 2) {
-            this.chartData = [];
-            return;
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (this.activePeriod === 'custom' && this.chartFilters.dateRange && this.chartFilters.dateRange.length === 2) {
+        [startDate, endDate] = this.chartFilters.dateRange.map(d => new Date(d));
+      } else {
+        endDate = new Date(today);
+        startDate = new Date(today);
+        if (this.activePeriod === '7days') {
+          startDate.setDate(today.getDate() - 6);
+        } else if (this.activePeriod === '30days') {
+          startDate.setDate(today.getDate() - 29);
+        } else if (this.activePeriod === '1year') {
+          startDate.setFullYear(today.getFullYear() - 1);
         }
-        [startDate, endDate] = this.chartFilters.dateRange;
       }
       
       // YYYY-MM-DD 형식으로 변환
-      const formatDate = (date) => date.toISOString().split('T')[0];
+      const formatDate = (date) => {
+        const d = new Date(date);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
 
       const requestBody = {
         startDate: formatDate(startDate),
         endDate: formatDate(endDate),
-        hotelId: this.chartFilters.hotelId === 'ALL' ? null : this.chartFilters.hotelId,
-        roomType: this.chartFilters.roomType === 'ALL' ? null : this.chartFilters.roomType,
+        hotelId: this.chartFilters.hotelId,
+        roomType: this.chartFilters.roomType,
       };
 
       try {
@@ -826,17 +834,16 @@ export default {
       return filledData;
     },
 
-    // ✅ [추가] 기간 버튼 클릭 핸들러
+    // 기간 버튼 클릭 핸들러
     setPeriod(period) {
       this.activePeriod = period;
-      this.chartFilters.dateRange = []; // 기간 버튼 누르면 날짜 선택 초기화
+      this.chartFilters.dateRange = []; // 기간 버튼 선택 시 캘린더 선택은 초기화
       this.fetchChartData();
     },
     clearChartFilters() {
       this.chartFilters.hotelId = null;
       this.chartFilters.roomType = null;
-      this.chartFilters.dateRange = [];
-      this.setPeriod('7days'); // 초기화 시 기본값인 7일로 설정
+      this.setPeriod('7days');
     },
 
     // --- 공통 메소드 ---
@@ -1298,20 +1305,30 @@ export default {
 
 
   watch: {
-    //  filteredCalendarEvents가 변경될 때마다 캘린더의 events 옵션을 업데이트합니다.
+    chartFilters: {
+      handler(newFilters, oldFilters) {
+        // 날짜 범위 배열의 내용이 실제로 변경되었는지 확인합니다.
+        const newDateRange = JSON.stringify(newFilters.dateRange);
+        const oldDateRange = JSON.stringify(oldFilters.dateRange);
+
+        if (newDateRange !== oldDateRange) {
+          if (newFilters.dateRange && newFilters.dateRange.length === 2) {
+            this.activePeriod = 'custom';
+          }
+        }
+        
+        // 어떤 필터가 변경되든 항상 데이터를 새로고침합니다.
+        this.fetchChartData();
+      },
+      deep: true  // 이 옵션이 객체 내부의 모든 변경을 감지하게 해줍니다.
+    },
+
+    // 캘린더 이벤트 목록을 감시하는 부분은 그대로 유지합니다.
     filteredCalendarEvents: {
       handler(newEvents) {
         this.calendarOptions.events = newEvents;
       },
       immediate: true
-    },
-    'chartFilters.hotelId': 'fetchChartData',
-    'chartFilters.roomType': 'fetchChartData',
-    'chartFilters.dateRange'(newRange) {
-        if(newRange.length === 2) {
-            this.activePeriod = 'custom'; // 날짜가 선택되면 activePeriod 변경
-            this.fetchChartData();
-        }
     }
   },
 

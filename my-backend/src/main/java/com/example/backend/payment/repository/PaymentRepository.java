@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.example.backend.HotelOwner.domain.Room;
 import com.example.backend.HotelOwner.dto.DailySalesDto;
 import com.example.backend.payment.domain.Payment;
 
@@ -24,7 +25,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
         @Param("startDate") LocalDateTime startDate,
         @Param("endDate") LocalDateTime endDate);
 
-    @Query("SELECT new com.example.backend.HotelOwner.dto.DailySalesDto(FUNCTION('DATE', p.createdAt), SUM(p.totalPrice)) " +
+    @Query("SELECT new com.example.backend.HotelOwner.dto.DailySalesDto(CAST(p.createdAt AS LocalDate), SUM(p.totalPrice)) " +
            "FROM Payment p WHERE p.status = 'COMPLETED' " +
            "AND p.reservationId IN " +
            "(SELECT r.id FROM Reservation r WHERE r.roomId IN " +
@@ -32,12 +33,13 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
            "AND (:hotelId IS NULL OR rm.hotel.id = :hotelId) " +
            "AND (:roomType IS NULL OR rm.roomType = :roomType))) " +
            "AND p.createdAt >= :startDate AND p.createdAt < :endDate " +
-           "GROUP BY FUNCTION('DATE', p.createdAt) " +
-           "ORDER BY FUNCTION('DATE', p.createdAt)")
+           "GROUP BY CAST(p.createdAt AS LocalDate) " +
+           "ORDER BY CAST(p.createdAt AS LocalDate)")
     List<DailySalesDto> findDailySalesByOwner(
-        @Param("ownerId") Long ownerId, 
-        @Param("startDate") LocalDateTime startDate, 
+        @Param("ownerId") Long ownerId,
+        @Param("startDate") LocalDateTime startDate,
         @Param("endDate") LocalDateTime endDate,
         @Param("hotelId") Long hotelId,
-        @Param("roomType") String roomType);
+        @Param("roomType") Room.RoomType roomType // String -> Room.RoomType 으로 변경
+    );
 }

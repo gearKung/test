@@ -305,11 +305,11 @@ public class HotelService {
         LocalDateTime end = requestDto.getEndDate().plusDays(1).atStartOfDay();
 
         return paymentRepository.findDailySalesByOwner(
-            ownerId, 
-            start, 
-            end, 
-            requestDto.getHotelId(), 
-            requestDto.getRoomType()
+            ownerId,
+            start,
+            end,
+            requestDto.getHotelId(),
+            requestDto.getRoomType() 
         );
     }
 }
