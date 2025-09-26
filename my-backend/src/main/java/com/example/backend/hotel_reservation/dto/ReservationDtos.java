@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 import com.example.backend.HotelOwner.domain.Room;
 import com.example.backend.HotelOwner.domain.User;
@@ -76,5 +77,14 @@ public class ReservationDtos {
             this.status = reservation.getStatus();
             this.nights = ChronoUnit.DAYS.between(this.checkInDate, this.checkOutDate);
         }
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class DashboardActivityResponse {
+        private List<OwnerReservationResponse> checkIns;
+        private List<OwnerReservationResponse> checkOuts;
+        private List<OwnerReservationResponse> recentReservations;
     }
 }

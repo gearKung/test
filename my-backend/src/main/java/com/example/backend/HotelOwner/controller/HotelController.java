@@ -343,4 +343,11 @@ public class HotelController {
         List<DailySalesDto> dailySales = hotelService.getDailySales(ownerId, requestDto);
         return ResponseEntity.ok(dailySales);
     }
+    //  대시보드 활동 데이터 API
+    @GetMapping("/dashboard/activity")
+    public ResponseEntity<ReservationDtos.DashboardActivityResponse> getDashboardActivity(@RequestHeader("Authorization") String authHeader) {
+        Long ownerId = getUserIdFromToken(authHeader);
+        ReservationDtos.DashboardActivityResponse activityData = hotelService.getDashboardActivity(ownerId);
+        return ResponseEntity.ok(activityData);
+    }
 }

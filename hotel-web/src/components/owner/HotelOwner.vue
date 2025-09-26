@@ -97,16 +97,17 @@
               <button :class="{ active: activeTab === 'check-in' }" @click="activeTab = 'check-in'">체크인 ({{ todaysCheckIns.length }})</button>
               <button :class="{ active: activeTab === 'check-out' }" @click="activeTab = 'check-out'">체크아웃 ({{ todaysCheckOuts.length }})</button>
             </div>
+
             <ul v-if="activeTab === 'check-in'" class="guest-list">
-              <li v-for="guest in todaysCheckIns" :key="guest.id">
-                <span>{{ guest.name }}</span>
-                <span class="room-type">{{ guest.roomType }}</span>
+              <li v-for="reservation in todaysCheckIns" :key="reservation.id" @click="showReservationDetails(reservation)">
+                <span>{{ reservation.guestName }}</span>
+                <span class="room-type">{{ reservation.roomType }}</span>
               </li>
             </ul>
             <ul v-if="activeTab === 'check-out'" class="guest-list">
-              <li v-for="guest in todaysCheckOuts" :key="guest.id">
-                <span>{{ guest.name }}</span>
-                <span class="room-type">{{ guest.roomType }}</span>
+              <li v-for="reservation in todaysCheckOuts" :key="reservation.id" @click="showReservationDetails(reservation)">
+                <span>{{ reservation.guestName }}</span>
+                <span class="room-type">{{ reservation.roomType }}</span>
               </li>
             </ul>
           </div>
@@ -114,9 +115,9 @@
           <div class="info-card">
             <h4>최근 예약</h4>
             <ul class="activity-list">
-              <li v-for="res in recentReservations" :key="res.id">
-                <p><strong>{{ res.name }}</strong> 님이 <strong>{{ res.roomType }}</strong> 예약을 완료했습니다.</p>
-                <span class="time-ago">{{ res.timeAgo }}</span>
+              <li v-for="reservation in recentReservations" :key="reservation.id" @click="showReservationDetails(reservation)">
+                <p><strong>{{ reservation.guestName }}</strong>님이 <strong>{{ reservation.roomType }}</strong> 예약을 완료했습니다.</p>
+                <span class="time-ago">{{ formatTimeAgo(reservation.createdAt) }}</span>
               </li>
             </ul>
           </div>
@@ -627,9 +628,9 @@ export default {
       },
 
       activeTab: 'check-in',
-      todaysCheckIns: [ { id: 1, name: '김민준', roomType: '디럭스룸' } /* ... */ ],
-      todaysCheckOuts: [ { id: 4, name: '최하은', roomType: '디럭스룸' } /* ... */ ],
-      recentReservations: [ { id: 1, name: '강지안', roomType: '스위트룸', timeAgo: '5분 전' } /* ... */ ],
+      todaysCheckIns: [],
+      todaysCheckOuts: [],
+      recentReservations: [],
       recentReviews: [ { id: 1, name: '조하윤', rating: 5, comment: '정말 최고의 경험이었어요!' } /* ... */ ],
     };
   },
@@ -845,6 +846,34 @@ export default {
       this.chartFilters.roomType = null;
       this.setPeriod('7days');
     },
+    async fetchDashboardActivity() {
+      const headers = this.getAuthHeaders();
+      if (!headers) return;
+      try {
+        const response = await axios.get('/api/hotels/dashboard/activity', { headers });
+        const data = response.data;
+        this.todaysCheckIns = data.checkIns;
+        this.todaysCheckOuts = data.checkOuts;
+        this.recentReservations = data.recentReservations;
+      } catch (error) {
+        console.error("대시보드 활동 정보 조회 실패:", error);
+      }
+    },
+    formatTimeAgo(dateString) {
+      const now = new Date();
+      const past = new Date(dateString);
+      const diffInSeconds = Math.floor((now - past) / 1000);
+      
+      const minutes = Math.floor(diffInSeconds / 60);
+      if (minutes < 60) return `${minutes}분 전`;
+      
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return `${hours}시간 전`;
+
+      const days = Math.floor(hours / 24);
+      return `${days}일 전`;
+    },
+
 
     // --- 공통 메소드 ---
     getAuthHeaders() {
@@ -1348,6 +1377,7 @@ export default {
 
     this.fetchDashboardSummary();
     this.fetchChartData();
+    this.fetchDashboardActivity();
 
     this.loadMockReviews(); //리뷰 임시데이터
   },
@@ -2391,6 +2421,15 @@ export default {
   list-style: none;
   padding: 0;
   margin: 0;
+}
+.guest-list {
+  max-height: 180px; /* 4명 분량의 높이 (li 1개당 약 45px) */
+  overflow-y: auto;
+}
+
+.activity-list {
+  max-height: 280px; /* 5명 분량의 높이 (li 1개당 약 56px) */
+  overflow-y: auto;
 }
 .guest-list li, .activity-list li {
   display: flex;

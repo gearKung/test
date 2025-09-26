@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -311,5 +312,34 @@ public class HotelService {
             requestDto.getHotelId(),
             requestDto.getRoomType() 
         );
+    }
+
+    //  대시보드 오늘의 현황 및 최근 예약을 위한 서비스 메소드
+    public ReservationDtos.DashboardActivityResponse getDashboardActivity(Long ownerId) {
+        // 테스트를 위해 오늘 날짜를 2025-10-05로 고정 (실제 운영 시 LocalDate.now() 사용)
+        LocalDate today = LocalDate.of(2025, 10, 5);
+        // LocalDate today = LocalDate.now();
+
+        // 오늘의 체크인/체크아웃 조회
+        List<Reservation> checkIns = reservationRepository.findCheckInsForOwnerByDate(ownerId, today);
+        List<Reservation> checkOuts = reservationRepository.findCheckOutsForOwnerByDate(ownerId, today);
+
+        // 최근 예약 5건 조회
+        List<Reservation> recentReservations = reservationRepository.findTop5RecentReservationsForOwner(ownerId, PageRequest.of(0, 5));
+
+        // DTO로 변환
+        List<ReservationDtos.OwnerReservationResponse> checkInDtos = checkIns.stream()
+            .map(ReservationDtos.OwnerReservationResponse::fromEntity)
+            .collect(Collectors.toList());
+
+        List<ReservationDtos.OwnerReservationResponse> checkOutDtos = checkOuts.stream()
+            .map(ReservationDtos.OwnerReservationResponse::fromEntity)
+            .collect(Collectors.toList());
+            
+        List<ReservationDtos.OwnerReservationResponse> recentReservationDtos = recentReservations.stream()
+            .map(ReservationDtos.OwnerReservationResponse::fromEntity)
+            .collect(Collectors.toList());
+
+        return new ReservationDtos.DashboardActivityResponse(checkInDtos, checkOutDtos, recentReservationDtos);
     }
 }
