@@ -3,6 +3,7 @@ package com.example.backend.payment.repository;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -46,4 +47,6 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
         @Param("hotelId") Long hotelId,
         @Param("roomType") Room.RoomType roomType
     );
+
+     Optional<Payment> findByReservationId(Long reservationId);
 } 

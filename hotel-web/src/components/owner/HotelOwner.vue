@@ -68,10 +68,10 @@
                 </select>
                 
                 <flat-pickr
-                  v-model="chartFilters.dateRange"
                   :config="chartDateConfig"
                   placeholder="날짜 범위 선택"
                   class="date-picker-placeholder small"
+                  :value="chartFilters.dateRange" 
                 />
               </div>
             </div>
@@ -415,7 +415,13 @@
             <div class="modal-item full-width"><strong>요청사항:</strong><span>{{ selectedReservation.requests || '없음' }}</span></div>
           </div>
           <div class="modal-actions">
-            <button class="btn-danger" @click="cancelReservation(selectedReservation.id)">예약 취소</button>
+            <button 
+              class="btn-danger" 
+              @click="cancelReservation(selectedReservation.id)"
+              :disabled="!isCancellable(selectedReservation)"
+              :class="{ 'disabled': !isCancellable(selectedReservation) }">
+              예약 취소
+            </button>
           </div>
         </div>
       </div>
@@ -545,6 +551,15 @@ export default {
         altInput: true,       // 사용자에게 보여줄 대체 입력란 사용
         altFormat: "Y년 m월 d일", // 보여줄 날짜 형식
         locale: Korean,       // 한국어 설정
+        onClose: (selectedDates) => {
+          // 사용자가 날짜 선택을 마치고 창을 닫았을 때만 값을 업데이트합니다.
+          if (selectedDates.length === 2) {
+            this.chartFilters.dateRange = [
+              new Date(selectedDates[0]),
+              new Date(selectedDates[1]),
+            ];
+          }
+        },
         // onClose 콜백 등을 필요에 따라 추가할 수 있습니다.
         onReady: (_, __, instance) => {
           this.updateChartCalendarHeaders(instance);
@@ -554,17 +569,6 @@ export default {
             this.updateChartCalendarHeaders(instance);
           });
         },
-        // onChange: (selectedDates) => {
-        // // 두 날짜가 다 선택되면 바로 chartFilters에 반영하고 조회
-        // if (selectedDates && selectedDates.length === 2) {
-        //   this.chartFilters.dateRange = [
-        //     new Date(selectedDates[0]),
-        //     new Date(selectedDates[1]),
-        //   ];
-        //   // watcher가 있어도 실사용에선 즉시 호출이 체감 좋아서 한 번 더 안전 호출
-        //   this.fetchChartData();
-        //   }
-        // },
       },
 
       chartFilters: {
@@ -659,7 +663,7 @@ export default {
           checkIn.setHours(0,0,0,0);
           const checkOut = new Date(r.checkOutDate);
           checkOut.setHours(0,0,0,0);
-          return selected >= checkIn && selected < checkOut;
+          return selected >= checkIn && selected <= checkOut;
         });
       }
       
@@ -678,8 +682,30 @@ export default {
           r.guestName.toLowerCase().includes(keyword)
         );
       }
-      
       return reservations;
+    },
+    isCancellable() {
+      return (reservation) => {
+        if (!reservation) return false;
+
+        // 이미 취소된 예약은 취소 불가
+        if (reservation.status === 'CANCELLED') {
+          return false;
+        }
+
+        // 오늘 날짜와 체크인 날짜를 시간 정보 없이 비교
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); 
+        const checkInDate = new Date(reservation.checkInDate);
+        checkInDate.setHours(0, 0, 0, 0);
+
+        // 체크인 날짜가 지났거나 오늘이면 취소 불가
+        if (checkInDate <= today) {
+          return false;
+        }
+
+        return true;
+      };
     },
     filteredReviews() {
         let reviews = this.allReviews;
@@ -706,13 +732,19 @@ export default {
       const filteredList = this.filteredReservations;
       
       // 2. 이 결과를 FullCalendar 이벤트 형식으로 변환하기만 하면 됩니다.
-      return filteredList.map(r => ({
-            title: `${r.guestName} (${r.roomType})`,
-            start: r.checkInDate,
-            end: r.checkOutDate,
-            color: r.status === 'COMPLETED' ? '#10b981' : '#6b7280',
-            extendedProps: { reservation: r } 
-      }));
+      return filteredList.map(r => {
+        // 체크아웃 날짜에 하루를 더해 FullCalendar가 마지막 날까지 포함하도록 함
+        const endDate = new Date(r.checkOutDate);
+        endDate.setDate(endDate.getDate() + 1);
+
+        return {
+          title: `${r.guestName} (${r.roomType})`,
+          start: r.checkInDate,
+          end: endDate.toISOString().split('T')[0], // 'YYYY-MM-DD' 형식으로 변환
+          color: r.status === 'COMPLETED' ? '#10b981' : '#6b7280',
+          extendedProps: { reservation: r }
+        };
+      });
     },
   },
 
@@ -2124,12 +2156,25 @@ export default {
   justify-content: flex-end;
   gap: 12px;
 }
-.btn-danger { background-color: #ef4444; color: #fff; }
+.btn-danger { 
+  background-color: #ef4444; color: #fff;
+  border-radius: 6px;
+  padding: 8px 14px;
+ }
+
+.btn-danger.disabled {
+  background-color: #9ca3af; /* 회색 */
+  cursor: not-allowed;
+}
+
+.btn-danger.disabled:hover {
+  background-color: #9ca3af; /* 호버 시에도 색상 유지 */
+}
+
 .sidebar {
   display: flex;
   flex-direction: column; /* 아이템을 세로로 배치 */
 }
-
 .sidebar nav {
   flex-grow: 1; /* nav가 남는 공간을 모두 차지하여 footer를 아래로 밀어냄 */
 }

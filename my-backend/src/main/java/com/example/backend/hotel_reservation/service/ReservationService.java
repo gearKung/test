@@ -5,6 +5,9 @@ import com.example.backend.hotel_reservation.domain.*;
 import com.example.backend.hotel_reservation.dto.ReservationDtos;
 import com.example.backend.hotel_reservation.dto.ReservationDtos.*;
 import com.example.backend.hotel_reservation.repository.*;
+import com.example.backend.payment.domain.Payment;
+import com.example.backend.payment.repository.PaymentRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,6 +25,7 @@ public class ReservationService {
     private final ReservationRepository resRepo;
     private final RoomRepository roomRepo;
     private final ReservationRepository reservationRepository;
+    private final PaymentRepository paymentRepository;
 
     private static LocalDate parseYmd(String s) {
         return LocalDate.parse(s); // 'YYYY-MM-DD' 가정
@@ -196,5 +200,12 @@ public class ReservationService {
         r.setStatus(ReservationStatus.CANCELLED);
         resRepo.save(r);
         log.info("[OWNER CANCEL] 업주에 의해 예약이 취소 처리되었습니다. reservationId={}", r.getId());
+
+        paymentRepository.findByReservationId(reservationId).ifPresent(payment -> {
+            payment.setStatus(Payment.PaymentStatus.CANCELLED);
+            payment.setCanceledAt(LocalDateTime.now());
+            paymentRepository.save(payment);
+            log.info("[OWNER CANCEL] 결제 정보가 취소 처리되었습니다. paymentId={}, reservationId={}", payment.getId(), r.getId());
+        });
     }
 }
