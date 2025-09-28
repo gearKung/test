@@ -297,9 +297,21 @@
                       <option>트윈룸</option>
                   </select>
                 </div>
-                <div class="form-group"><label>객실 크기</label><input v-model="roomForm.roomSize" required /></div>
+                <div class="form-group">
+                  <label>객실 크기</label>
+                  <div class="input-with-unit">
+                    <input v-model.number="roomSizeNumber" type="number" required placeholder="숫자만 입력" />
+                    <span>㎡</span>
+                  </div>
+                </div>
                 <div class="form-group"><label>최소/최대 인원</label><div class="inline-group"><input v-model.number="roomForm.capacityMin" type="number" required /><input v-model.number="roomForm.capacityMax" type="number" required /></div></div>
-                <div class="form-group"><label>1박 가격</label><input v-model.number="roomForm.price" type="number" required /></div>
+                <div class="form-group">
+                  <label>1박 가격</label>
+                  <div class="input-with-unit">
+                    <input v-model.number="roomForm.price" type="number" required placeholder="숫자만 입력" />
+                    <span>원</span>
+                  </div>
+                </div>
                 <div class="form-group"><label>객실 수</label><input v-model.number="roomForm.roomCount" type="number" required /></div>
                 <div class="form-group"><label>체크인/체크아웃 시간</label><div class="inline-group"><input v-model="roomForm.checkInTime" type="time" required /><input v-model="roomForm.checkOutTime" type="time" required /></div></div>
                 
@@ -368,9 +380,9 @@
               <input type="text" v-model="searchKeyword" placeholder="예약자명 검색" class="search-input"/>
               
               <select v-model="filterStatus" class="filter-select">
+                  <option value="ALL">모든 상태</option>
                   <option value="COMPLETED">예약 완료</option>
                   <option value="CANCELLED">예약 취소</option>
-                  <option value="ALL">모든 상태</option>
               </select>
             </div>
 
@@ -609,6 +621,7 @@ export default {
       editingRoom: null,
       hotelForm: {},
       roomForm: {},
+      roomSizeNumber: null,
 
       hotelEditableImages: [],
       roomEditableImages: [], 
@@ -646,6 +659,7 @@ export default {
         locale: 'ko',
         events: [], // 이벤트는 watch를 통해 동적으로 채워집니다.
         dateClick: this.handleDateClick,
+        eventClick: this.handleEventClick,
         dayMaxEvents: 3,
         views: {
           dayGridWeek: {
@@ -760,22 +774,33 @@ export default {
         return reviews;
     },
     filteredCalendarEvents() {
-      console.log("[Computed] 최근 예약 목록 필터링 결과를 캘린더에 반영합니다.");
       
       // 1. 이미 모든 필터링이 완료된 'filteredReservations' 결과를 가져옵니다.
       const filteredList = this.filteredReservations;
       
+      const roomTypeColors = {
+        '스위트룸': '#FFD700', // Gold
+        '디럭스룸': '#87CEEB', // Sky Blue
+        '스탠다드룸': '#32CD32', // Lime Green
+        '싱글룸': '#FFA07A', // Light Salmon
+        '트윈룸': '#B19CD9'  // Light Purple
+      };
+
       // 2. 이 결과를 FullCalendar 이벤트 형식으로 변환하기만 하면 됩니다.
       return filteredList.map(r => {
         // 체크아웃 날짜에 하루를 더해 FullCalendar가 마지막 날까지 포함하도록 함
         const endDate = new Date(r.checkOutDate);
         endDate.setDate(endDate.getDate() + 1);
 
+        const eventColor = r.status === 'COMPLETED' 
+          ? roomTypeColors[r.roomType] || '#10b981' // 기본값 (기존 녹색)
+          : '#6b7280'; // 그 외 상태 (회색)
+
         return {
           title: `${r.guestName} (${r.roomType})`,
           start: r.checkInDate,
-          end: endDate.toISOString().split('T')[0], // 'YYYY-MM-DD' 형식으로 변환
-          color: r.status === 'COMPLETED' ? '#10b981' : '#6b7280',
+          end: endDate.toISOString().split('T')[0],
+          color: eventColor,
           extendedProps: { reservation: r }
         };
       });
@@ -1224,6 +1249,7 @@ export default {
     openRoomCreateForm() {
         this.editingRoom = null;
         this.roomForm = { roomType: '스탠다드룸', checkInTime: '15:00', checkOutTime: '11:00' };
+        this.roomSizeNumber = null;
         this.roomEditableImages = [];
         this.newImageFiles = [];
         this.deletedImageUrls = [];
@@ -1232,6 +1258,12 @@ export default {
     editRoom(room) {
         this.editingRoom = room;
         this.roomForm = JSON.parse(JSON.stringify(room));
+        // '35㎡' 같은 문자열에서 숫자만 추출하여 roomSizeNumber에 할당
+        if (this.roomForm.roomSize) {
+            this.roomSizeNumber = parseInt(this.roomForm.roomSize.replace(/[^0-9]/g, ''), 10);
+        } else {
+            this.roomSizeNumber = null;
+        }
         this.roomEditableImages = (room.imageUrls || []).map(url => ({ type: 'url', src: url, id: url }));
         this.newImageFiles = [];
         this.deletedImageUrls = [];
@@ -1256,6 +1288,10 @@ export default {
       }
     },
     handleRoomSubmit() {
+      if (this.roomSizeNumber) {
+          this.roomForm.roomSize = `${this.roomSizeNumber}㎡`;
+      }
+
       const formData = new FormData();
       const finalImageUrls = this.roomEditableImages.filter(img => img.type === 'url').map(img => img.src);
       const roomData = {
@@ -1269,8 +1305,8 @@ export default {
       const newFilesInOrder = this.roomEditableImages.filter(img => img.type === 'file').map(img => img.fileObject);
       newFilesInOrder.forEach(file => { formData.append('files', file); });
       
-      console.log("✅ 전송될 객실 데이터:", roomData);
-      console.log("✅ 전송될 새 파일:", newFilesInOrder);
+      console.log("전송될 객실 데이터:", roomData);
+      console.log("전송될 새 파일:", newFilesInOrder);
 
       if (this.editingRoom) this.updateRoom(formData);
       else this.createRoom(formData);
@@ -1330,6 +1366,17 @@ export default {
       this.filterStatus = 'COMPLETED';
       this.filterRoomType = 'ALL';
     },
+    handleEventClick(clickInfo) {
+    // 캘린더에서 이벤트를 클릭하면 해당 예약의 상세 정보를 보여줍니다.
+    if (clickInfo.event.extendedProps.reservation) {
+      this.showReservationDetails(clickInfo.event.extendedProps.reservation);
+    }
+
+    const popover = document.querySelector('.fc-popover');
+    if (popover) {
+      popover.style.display = 'none';
+    }
+  },
     showReservationDetails(reservation) {
       this.selectedReservation = reservation;
     },
@@ -2177,7 +2224,6 @@ export default {
   font-size: 12px;
   font-weight: 700;
   color: white;
-  margin-left: auto; /* 오른쪽 끝으로 밀기 */
 }
 .status-badge.reported { background-color: #ff0000; }
 .status-badge.hidden { background-color: #6b7280; }
@@ -2265,6 +2311,7 @@ export default {
   background-color: #ef4444; color: #fff;
   border-radius: 6px;
   padding: 8px 14px;
+  margin-left: auto;
  }
 
 .btn-danger.disabled {
@@ -2700,5 +2747,33 @@ export default {
 .btn-primary {
   padding: 10px 12px;
   border-radius: 6px;
+}
+.input-with-unit {
+  display: flex;
+  align-items: center;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  overflow: hidden; /* 내부 요소가 border-radius를 넘지 않도록 */
+}
+
+.input-with-unit input {
+  border: none;
+  flex-grow: 1;
+  /* 기존 input 스타일과 겹치는 부분 제거 */
+}
+
+.input-with-unit input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.input-with-unit span {
+  padding: 0 12px;
+  color: #6b7280;
+  background-color: #f9fafb;
+  border-left: 1px solid #d1d5db;
+  align-self: stretch; /* 높이를 input과 맞춤 */
+  display: flex;
+  align-items: center;
 }
 </style>
