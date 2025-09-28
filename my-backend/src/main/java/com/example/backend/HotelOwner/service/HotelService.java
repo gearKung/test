@@ -40,6 +40,8 @@ import com.example.backend.hotel_reservation.dto.ReservationDtos;
 import com.example.backend.hotel_reservation.repository.ReservationRepository;
 import com.example.backend.payment.repository.PaymentRepository;
 import com.example.backend.repository.UserRepository;
+import com.example.backend.review.dto.ReviewDto;
+import com.example.backend.review.repository.ReviewRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -57,6 +59,7 @@ public class HotelService {
     private final HotelAmenityRepository hotelAmenityRepository;
     private final ReservationRepository reservationRepository;
     private final PaymentRepository paymentRepository;
+    private final ReviewRepository reviewRepository;
 
     @Transactional
     public Hotel createHotel(HotelDto hotelDto, List<String> imageUrls, List<Long> amenityIds, Long ownerId) {
@@ -378,5 +381,13 @@ public class HotelService {
             .collect(Collectors.toList());
 
         return new ReservationDtos.DashboardActivityResponse(checkInDtos, checkOutDtos, recentReservationDtos);
+    }
+
+    // 업주 ID로 모든 리뷰를 조회하는 서비스 메소드
+    @Transactional(readOnly = true)
+    public List<ReviewDto> getReviewsByOwner(Long ownerId) {
+        return reviewRepository.findByHotelOwnerId(ownerId).stream()
+                .map(ReviewDto::fromEntity)
+                .collect(Collectors.toList());
     }
 }

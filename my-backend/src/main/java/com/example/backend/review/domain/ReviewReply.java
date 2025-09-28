@@ -1,10 +1,11 @@
 package com.example.backend.review.domain;
 
-import com.example.backend.authlogin.domain.User;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+
+import com.example.backend.HotelOwner.domain.User;
 
 @Entity
 @Getter

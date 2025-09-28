@@ -37,6 +37,9 @@ import com.example.backend.HotelOwner.service.RoomService;
 import com.example.backend.config.JwtUtil;
 import com.example.backend.hotel_reservation.dto.ReservationDtos;
 import com.example.backend.hotel_reservation.service.ReservationService;
+import com.example.backend.review.dto.ReviewDto;
+import com.example.backend.review.dto.ReviewReplyDto;
+import com.example.backend.review.service.ReviewService;
 
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
@@ -53,6 +56,7 @@ public class HotelController {
     private final FileStorageService fileStorageService;
     private final AmenityService amenityService;
     private final ReservationService reservationService;
+    private final ReviewService reviewService;
 
     @GetMapping("/amenities")
     public ResponseEntity<List<AmenityDto>> getAllAmenities() {
@@ -358,6 +362,32 @@ public class HotelController {
     public ResponseEntity<Void> cancelReservationByOwner(@PathVariable Long id) {
         log.info("[Controller] 업주에 의한 예약 취소 API 호출, reservationId: {}", id);
         reservationService.cancelByOwner(id);
+        return ResponseEntity.ok().build();
+    }
+
+    //  대시보드 리뷰 데이터 API
+    @GetMapping("/dashboard/reviews")
+    public ResponseEntity<List<ReviewDto>> getDashboardReviews(@RequestHeader("Authorization") String authHeader) {
+        Long ownerId = getUserIdFromToken(authHeader);
+        List<ReviewDto> reviews = hotelService.getReviewsByOwner(ownerId);
+        return ResponseEntity.ok(reviews);
+    }
+
+    // 리뷰 답변 등록 API
+    @PostMapping("/reviews/{reviewId}/reply")
+    public ResponseEntity<Void> addReply(@PathVariable Long reviewId, @RequestBody ReviewReplyDto replyDto, @RequestHeader("Authorization") String authHeader) {
+        Long ownerId = getUserIdFromToken(authHeader);
+        replyDto.setOwnerId(ownerId);
+        reviewService.addReplyToReview(reviewId, replyDto);
+        return ResponseEntity.ok().build();
+    }
+
+    //  리뷰 답변 수정 API
+    @PutMapping("/reviews/replies/{replyId}")
+    public ResponseEntity<Void> updateReply(@PathVariable Long replyId, @RequestBody ReviewReplyDto replyDto, @RequestHeader("Authorization") String authHeader) {
+        Long ownerId = getUserIdFromToken(authHeader);
+        replyDto.setOwnerId(ownerId);
+        reviewService.updateReply(replyId, replyDto);
         return ResponseEntity.ok().build();
     }
 }   

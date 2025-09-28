@@ -1,13 +1,16 @@
 package com.example.backend.review.domain;
 
-import com.example.backend.authlogin.domain.User;
-import com.example.backend.fe_hotel_detail.domain.Hotel;
+
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+
+import com.example.backend.HotelOwner.domain.Hotel;
+import com.example.backend.HotelOwner.domain.User;
+import com.example.backend.hotel_reservation.domain.Reservation;
 
 @Entity
 @Getter
@@ -20,6 +23,10 @@ public class Review {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reservation_id", unique = true)
+    private Reservation reservation;
 
     // 리뷰 작성자 (유저)
     @ManyToOne(fetch = FetchType.LAZY)
@@ -49,7 +56,8 @@ public class Review {
     private ReviewReply reply;
 
     // 리뷰 노출 여부 (삭제 대신 숨김 처리)
-    @Builder.Default
+    @Builder.Default 
+    @Column(nullable = false)
     private boolean visible = true;
 
     // 생성 및 수정 시간

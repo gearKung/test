@@ -125,10 +125,10 @@
           <div class="info-card">
             <h4>최근 리뷰</h4>
             <ul class="activity-list">
-              <li v-for="review in recentReviews" :key="review.id">
-                <p><strong>{{ review.name }}</strong> 님이 <strong>"{{ review.comment }}"</strong> 리뷰를 남겼습니다.</p>
+              <li v-for="review in recentReviews" :key="review.id" @click="showReviewDetails(review)" style="cursor: pointer;">
+                <p><strong>{{ review.author }}</strong>님이 리뷰를 남겼습니다.</p>
                 <div class="star-rating small">
-                  <span v-for="n in 5" :key="n" :class="{ 'filled': n <= review.rating }">★</span>
+                  <span v-for="n in 5" :key="n" :class="{ 'filled': n <= review.star_rating }">★</span>
                 </div>
               </li>
             </ul>
@@ -501,9 +501,10 @@
             <h4>사장님 답변</h4>
             <textarea v-model="selectedReview.reply" placeholder="답변을 작성해주세요..."></textarea>
             <div class="reply-actions">
-              <button class="btn-primary">답변 등록</button>
+              <button v-if="selectedReview.replied" @click="handleReplySubmit" class="btn-primary">답변 수정</button>
+              <button v-else @click="handleReplySubmit" class="btn-primary">답변 등록</button>
             </div>
-          </div>
+          </div>  
         </div>
       </div>
 
@@ -633,19 +634,21 @@ export default {
         },
       },
 
+      // 리뷰 관련 
       allReviews: [],
       selectedReview: null,
       reviewFilter: {
         hotel: 'ALL',
         rating: 'ALL',
-        replied: 'ALL',
+        replied: 'NOT_REPLIED',
       },
 
+
+      // 오늘의 현황 관련
       activeTab: 'check-in',
       todaysCheckIns: [],
       todaysCheckOuts: [],
       recentReservations: [],
-      recentReviews: [ { id: 1, name: '조하윤', rating: 5, comment: '정말 최고의 경험이었어요!' } /* ... */ ],
     };
   },
 
@@ -706,6 +709,13 @@ export default {
 
         return true;
       };
+    },
+
+    recentReviews() {
+      // allReviews를 최신순으로 정렬하여 5개만 반환
+      return this.allReviews
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 5);
     },
     filteredReviews() {
         let reviews = this.allReviews;
@@ -1323,29 +1333,6 @@ export default {
       this.selectedDate = null;
     },
     
-    // 임시 데이터 생성 및 캘린더 이벤트 업데이트
-    loadMockReservations() {
-      console.log("A. [Method] loadMockReservations 메서드가 호출되었습니다.");
-      // 백엔드 API 대신 사용할 하드코딩된 데이터
-      const mockData = [
-        { id: 'R1001', hotelName: '강릉 씨마크 호텔', guestName: '김철수', guestPhone: '010-1234-5678', roomType: '디럭스룸', checkIn: '2025-09-22', checkOut: '2025-09-24', nights: 2, adults: 2, children: 0, status: 'COMPLETED', statusLabel: '예약 완료', requests: '바다 전망 객실로 부탁드립니다.' },
-        { id: 'R1002', hotelName: '강릉 씨마크 호텔', guestName: '박영희', guestPhone: '010-2222-3333', roomType: '스위트룸', checkIn: '2025-09-23', checkOut: '2025-09-26', nights: 3, adults: 2, children: 1, status: 'PENDING', statusLabel: '예약 대기', requests: '아기 침대가 필요해요.' },
-        { id: 'R1003', hotelName: '파라다이스 호텔 부산', guestName: '이민준', guestPhone: '010-4567-8901', roomType: '스탠다드룸', checkIn: '2025-09-25', checkOut: '2025-09-26', nights: 1, adults: 1, children: 0, status: 'CANCELLED', statusLabel: '예약 취소' },
-        { id: 'R1004', hotelName: '강릉 씨마크 호텔', guestName: '최유나', guestPhone: '010-8888-9999', roomType: '디럭스룸', checkIn: '2025-10-03', checkOut: '2025-10-05', nights: 2, adults: 2, children: 0, status: 'COMPLETED', statusLabel: '예약 완료' },
-      ];
-
-      this.allReservations = mockData;
-      console.log("B. [Method] this.allReservations에 임시 데이터가 할당되었습니다:", this.allReservations);
-
-      // 캘린더에 표시할 이벤트 데이터로 변환
-      this.calendarOptions.events = this.allReservations.map(r => ({
-        title: `${r.guestName} (${r.roomType})`,
-        start: r.checkIn,
-        end: r.checkOut,
-        color: r.status === 'COMPLETED' ? '#10b981' : (r.status === 'PENDING' ? '#f59e0b' : '#6b7280'),
-      }));
-      console.log("C. [Method] 캘린더 이벤트가 업데이트되었습니다:", this.calendarOptions.events);
-    },
     async cancelReservation(reservationId) {
       if (!confirm("정말로 이 예약을 취소하시겠습니까?")) return;
 
@@ -1378,12 +1365,86 @@ export default {
       this.selectedReview = null;
     },
 
-    loadMockReviews() {
-      this.allReviews = [
-        { id: 1, reservation_id: 101, wrote_on: '2025-09-21', star_rating: 5, content: '객실이 정말 깨끗하고 바다 전망이 환상적이었어요! 직원분들도 모두 친절하셔서 편안하게 쉬다 갑니다. 다음에 또 방문할게요!', image: 'https://source.unsplash.com/random/800x600?hotel,view', hotelName: '강릉 씨마크 호텔', author: '김철수', reply: '소중한 후기 감사드립니다! 다음에도 최고의 경험을 선물해 드릴 수 있도록 노력하겠습니다.' },
-        { id: 2, reservation_id: 102, wrote_on: '2025-09-20', star_rating: 4, content: '수영장이 넓고 좋아서 아이들이 정말 좋아했어요. 다만 조식 종류가 조금 더 다양했으면 하는 아쉬움이 남네요.', image: 'https://source.unsplash.com/random/800x600?hotel,pool', hotelName: '파라다이스 호텔 부산', author: '박영희', reply: '' },
-        { id: 3, reservation_id: 103, wrote_on: '2025-09-19', star_rating: 3, content: '위치는 좋았지만 방음이 잘 안돼서 조금 시끄러웠습니다. 시설은 전반적으로 만족합니다.', image: null, hotelName: '강릉 씨마크 호텔', author: '최유나', reply: '' },
-      ];
+    // 백엔드에서 리뷰 데이터를 가져오는 메소드
+    async fetchReviews() {
+        const headers = this.getAuthHeaders();
+        if (!headers) return;
+        try {
+            const response = await axios.get('/api/hotels/dashboard/reviews', { headers });
+            this.allReviews = response.data.map(review => ({
+                id: review.id,
+                replyId: review.replyId,
+                author: review.authorName,
+                hotelName: review.hotelName,
+                star_rating: review.rating,
+                content: review.content,
+                image: review.imageUrls && review.imageUrls.length > 0 ? review.imageUrls[0] : null,
+                wrote_on: new Date(review.createdAt).toLocaleDateString(),
+                reply: review.replyContent,
+                replied: review.replied,
+                createdAt: review.createdAt,
+            }));
+        } catch (error) {
+            console.error("리뷰 정보 조회 실패:", error);
+        }
+    },
+    async handleReplySubmit() {
+        if (!this.selectedReview || !this.selectedReview.reply || this.selectedReview.reply.trim() === '') {
+            alert("답변 내용을 입력해주세요.");
+            return;
+        }
+        const headers = this.getAuthHeaders();
+        if (!headers) return;
+        const replyDto = {
+            content: this.selectedReview.reply
+        };
+        try {
+            if (this.selectedReview.replied) {
+                await axios.put(`/api/hotels/reviews/replies/${this.selectedReview.replyId}`, replyDto, { headers });
+                alert("답변이 수정되었습니다.");
+            } else {
+                await axios.post(`/api/hotels/reviews/${this.selectedReview.id}/reply`, replyDto, { headers });
+                alert("답변이 등록되었습니다.");
+            }
+            this.closeReviewDetails();
+            await this.fetchReviews();
+        } catch (error) {
+            console.error("답변 처리 실패:", error);
+            alert("답변 처리 중 오류가 발생했습니다.");
+        }
+    },
+    async fetchReviews() {
+      // ...
+      try {
+        const response = await axios.get('/api/hotels/dashboard/reviews', { headers });
+        this.allReviews = response.data.map(review => ({
+          id: review.id,
+          replyId: review.replyId, // replyId 매핑 추가
+          author: review.authorName,
+          // ... (나머지 매핑)
+        }));
+      } catch (error) {
+        // ...
+      }
+    },
+
+    // handleReplySubmit 메소드에서 replyId를 사용하도록 수정
+    async handleReplySubmit() {
+      // ... (입력값 검증)
+      
+      try {
+        if (this.selectedReview.replied) {
+          // 답변 수정 시 selectedReview에서 replyId를 사용
+          await axios.put(`/api/hotels/reviews/replies/${this.selectedReview.replyId}`, replyDto, { headers });
+          alert("답변이 수정되었습니다.");
+        } else {
+          // ... (새 답변 등록 로직)
+        }
+        this.closeReviewDetails();
+        await this.fetchReviews();
+      } catch (error) {
+        // ...
+      }
     },
     async fetchReservations() {
         if (!this.user) return;
@@ -1446,7 +1507,7 @@ export default {
     this.fetchChartData();
     this.fetchDashboardActivity();
 
-    this.loadMockReviews(); //리뷰 임시데이터
+    this.fetchReviews();
   },
   beforeUnmount() {
     // 컴포넌트가 사라질 때 이벤트 리스너를 제거하여 메모리 누수 방지
