@@ -1,7 +1,7 @@
 <template>
   <div class="owner-page">
     <aside class="sidebar">
-      <div class="logo">🏨 Owner</div>
+      <div class="logo">🏨 Hotel</div>
       <nav>
         <ul>
           <li :class="{ active: activeMenu === 'dashboard' }" @click="activeMenu = 'dashboard'">대시보드</li>
@@ -169,9 +169,9 @@
               <img :src="selectedHotel.imageUrls && selectedHotel.imageUrls.length > 0 ? selectedHotel.imageUrls[0] : 'https://via.placeholder.com/400'" alt="호텔 대표 이미지" class="details-image"/>
               <div class="details-info">
                 <h2>{{ selectedHotel.name }}</h2>
-                <p><strong>주소:</strong> {{ selectedHotel.address }}, {{ selectedHotel.country }}</p>
-                <p><strong>성급:</strong> {{ selectedHotel.starRating }}성</p>
-                <p><strong>설명:</strong> {{ selectedHotel.description || '등록된 설명이 없습니다.' }}</p>
+                <p><strong>주소:</strong> {{ selectedHotel.address }}</p>
+                <p><strong>나라:</strong> {{ selectedHotel.country }}</p>
+                <p><strong>성급:</strong> {{ selectedHotel.starRating }}성⭐</p>
                 <div class="details-actions">
                   <button class="btn-edit" @click="editHotel(selectedHotel)">수정</button>
                   <button class="btn-delete" @click="deleteHotel(selectedHotel.id)">삭제</button>
@@ -229,7 +229,7 @@
               <div class="form-group"><label>사업자번호 (선택)</label><input v-model.number="hotelForm.businessId" type="number" /></div>
               <div class="form-group"><label>주소</label><input v-model="hotelForm.address" required /></div>
               <div class="form-group"><label>국가</label><input v-model="hotelForm.country" required /></div>
-              <div class="form-group"><label>성급 (1~5)</label><input v-model.number="hotelForm.starRating" type="number" min="1" max="5" required /></div>
+              <div class="form-group"><label>성급⭐(1~5)</label><input v-model.number="hotelForm.starRating" type="number" min="1" max="5" required /></div>
               <div class="form-group"><label>호텔 설명</label><textarea v-model="hotelForm.description"></textarea></div>
 
               <div class="form-group">
@@ -454,10 +454,16 @@
               <option value="REPLIED">답변 완료</option>
               <option value="NOT_REPLIED">미답변</option>
           </select>
+          <select v-model="reviewFilter.status" class="filter-select">
+            <option value="ALL">모든 리뷰</option>
+            <option value="VISIBLE">노출 리뷰</option>
+            <option value="REPORTED">신고 리뷰</option>
+            <option value="HIDDEN">숨긴 리뷰</option>
+          </select>
         </div>
 
         <div class="review-list">
-          <div v-for="review in filteredReviews" :key="review.id" class="review-card" @click="showReviewDetails(review)">
+          <div v-for="review in filteredReviews" :key="review.id" class="review-card" @click="showReviewDetails(review)" :class="`status-${review.status.toLowerCase()}`">
             <img :src="review.image || 'https://via.placeholder.com/150'" alt="리뷰 대표 이미지" class="review-image"/>
             <div class="review-content">
               <div class="review-header">
@@ -471,6 +477,8 @@
                 <span class="review-author">{{ review.author }}</span>
                 <span class="review-date">{{ review.wrote_on }}</span>
                 <span v-if="review.reply" class="reply-badge">답변 완료</span>
+                <span v-if="review.status === 'REPORTED'" class="status-badge reported">신고됨</span>
+                <span v-if="review.status === 'HIDDEN'" class="status-badge hidden">숨김 처리됨</span>
               </div>
             </div>
           </div>
@@ -497,14 +505,26 @@
             <p class="review-detail-text">{{ selectedReview.content }}</p>
             <img v-if="selectedReview.image" :src="selectedReview.image" alt="리뷰 이미지" class="review-detail-image"/>
           </div>
+
           <div class="reply-section">
             <h4>사장님 답변</h4>
             <textarea v-model="selectedReview.reply" placeholder="답변을 작성해주세요..."></textarea>
-            <div class="reply-actions">
-              <button v-if="selectedReview.replied" @click="handleReplySubmit" class="btn-primary">답변 수정</button>
-              <button v-else @click="handleReplySubmit" class="btn-primary">답변 등록</button>
+            <div class="modal-actions">
+              <button
+                v-if="selectedReview.status === 'VISIBLE'"
+                @click="handleReportReview"
+                class="btn-report">
+                악성 리뷰로 신고
+              </button>
+              <div v-else class="status-display">
+                {{ getStatusLabel(selectedReview.status) }}
+              </div>
+              <div class="reply-actions">
+                <button v-if="selectedReview.replied" @click="handleReplySubmit" class="btn-primary">답변 수정</button>
+                <button v-else @click="handleReplySubmit" class="btn-primary">답변 등록</button>
+              </div>
             </div>
-          </div>  
+          </div> 
         </div>
       </div>
 
@@ -641,6 +661,7 @@ export default {
         hotel: 'ALL',
         rating: 'ALL',
         replied: 'NOT_REPLIED',
+        status: 'VISIBLE', 
       },
 
 
@@ -732,6 +753,9 @@ export default {
             } else {
                 reviews = reviews.filter(r => !r.reply || r.reply.trim() === '');
             }
+        }
+        if (this.reviewFilter.status !== 'ALL') {
+            reviews = reviews.filter(r => r.status === this.reviewFilter.status);
         }
         return reviews;
     },
@@ -1383,6 +1407,7 @@ export default {
                 reply: review.replyContent,
                 replied: review.replied,
                 createdAt: review.createdAt,
+                status: review.status,
             }));
         } catch (error) {
             console.error("리뷰 정보 조회 실패:", error);
@@ -1413,39 +1438,6 @@ export default {
             alert("답변 처리 중 오류가 발생했습니다.");
         }
     },
-    async fetchReviews() {
-      // ...
-      try {
-        const response = await axios.get('/api/hotels/dashboard/reviews', { headers });
-        this.allReviews = response.data.map(review => ({
-          id: review.id,
-          replyId: review.replyId, // replyId 매핑 추가
-          author: review.authorName,
-          // ... (나머지 매핑)
-        }));
-      } catch (error) {
-        // ...
-      }
-    },
-
-    // handleReplySubmit 메소드에서 replyId를 사용하도록 수정
-    async handleReplySubmit() {
-      // ... (입력값 검증)
-      
-      try {
-        if (this.selectedReview.replied) {
-          // 답변 수정 시 selectedReview에서 replyId를 사용
-          await axios.put(`/api/hotels/reviews/replies/${this.selectedReview.replyId}`, replyDto, { headers });
-          alert("답변이 수정되었습니다.");
-        } else {
-          // ... (새 답변 등록 로직)
-        }
-        this.closeReviewDetails();
-        await this.fetchReviews();
-      } catch (error) {
-        // ...
-      }
-    },
     async fetchReservations() {
         if (!this.user) return;
         const headers = this.getAuthHeaders();  
@@ -1461,6 +1453,52 @@ export default {
             console.error("[예약 조회] API 호출 실패:", error.response || error);
             alert("예약 정보를 불러오는 데 실패했습니다.");
         }
+    },
+     async handleReportReview() {
+      if (!this.selectedReview) return;
+
+      // 이미 신고되었거나 처리된 리뷰는 더 이상 조작 불가
+      if (this.selectedReview.status !== 'VISIBLE') {
+        alert('이미 신고되었거나 관리자에 의해 처리된 리뷰입니다.');
+        return;
+      }
+
+      if (!confirm('이 리뷰를 악성 리뷰로 신고하시겠습니까?\n신고된 내용은 관리자 검토 후 처리됩니다.')) {
+        return;
+      }
+
+      const reviewId = this.selectedReview.id;
+      const headers = this.getAuthHeaders();
+      if (!headers) return;
+
+      try {
+        // 새로 만든 신고 API 호출
+        await axios.post(`/api/hotels/reviews/${reviewId}/report`, {}, { headers });
+        alert('리뷰가 정상적으로 신고되었습니다. 관리자 검토 후 처리됩니다.');
+
+        // 프론트엔드 상태를 즉시 'REPORTED'로 업데이트
+        this.selectedReview.status = 'REPORTED';
+        const index = this.allReviews.findIndex(r => r.id === reviewId);
+        if (index !== -1) {
+          this.allReviews[index].status = 'REPORTED';
+        }
+
+        this.closeReviewDetails();
+      } catch (error) {
+        console.error('리뷰 신고 처리 실패:', error);
+        const message = error.response?.data?.message || '리뷰 신고 처리에 실패했습니다.';
+        alert(message);
+      }
+    },
+    
+    // 상태 라벨을 반환하는 헬퍼 메소드
+    getStatusLabel(status) {
+      const statusMap = {
+        'REPORTED': '신고 접수 완료',
+        'HIDDEN': '숨김 처리',
+        'VISIBLE': '노출 중'
+      };
+      return statusMap[status] || '알 수 없음';
     },
   },
 
@@ -1704,7 +1742,7 @@ export default {
 }
 .details-image {
   width: 400px;
-  height: 400px;
+  height: 250px;
   object-fit: cover;
   border-radius: 10px;
   flex-shrink: 0;
@@ -2134,12 +2172,16 @@ export default {
   font-size: 16px;
 }
 .status-badge {
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: 12px;
   font-size: 12px;
   font-weight: 700;
-  color: #fff;
+  color: white;
+  margin-left: auto; /* 오른쪽 끝으로 밀기 */
 }
+.status-badge.reported { background-color: #ff0000; }
+.status-badge.hidden { background-color: #6b7280; }
+
 .status-badge.completed { background-color: #10b981; }
 .status-badge.pending { background-color: #f59e0b; }
 .status-badge.cancelled { background-color: #6b7280; }
@@ -2212,10 +2254,12 @@ export default {
   grid-column: 1 / -1;
 }
 .modal-actions {
-  margin-top: 30px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e7eb;
   display: flex;
-  justify-content: flex-end;
-  gap: 12px;
+  justify-content: space-between; /* 양쪽 끝으로 정렬 */
+  align-items: center;
 }
 .btn-danger { 
   background-color: #ef4444; color: #fff;
@@ -2230,6 +2274,19 @@ export default {
 
 .btn-danger.disabled:hover {
   background-color: #9ca3af; /* 호버 시에도 색상 유지 */
+}
+.btn-report {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 700;
+  color: white;
+  background-color: #ef4444; /* 빨간색 */
+  cursor: pointer;
+  transition: background-color .2s;
+}
+.btn-report:hover {
+  background-color: #dc2626;
 }
 
 .sidebar {
@@ -2308,6 +2365,21 @@ export default {
 .review-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 8px 20px #0000001f;
+}
+.review-card.status-reported {
+  border-left: 4px solid #ff0000; /* 주황색 */
+}
+.review-card.status-hidden {
+  opacity: 0.6;
+  border-left: 4px solid #6b7280; /* 회색 */
+}
+.status-display {
+  padding: 10px;
+  color: white;
+  background-color: #ff0000;
+  border-radius: 6px;
+  font-size: 14px;
+  text-align: center;
 }
 .review-image {
   width: 120px;
@@ -2417,7 +2489,9 @@ export default {
   resize: vertical;
 }
 .reply-actions {
-  margin-top: 15px;
+  display: flex;
+  gap: 10px; /* 버튼 사이 간격 */
+  margin-top: 0; /* 불필요한 상단 마진 제거 */
   text-align: right;
 }
 .chart-container {
@@ -2622,5 +2696,9 @@ export default {
   font-size: 12px;
   font-weight: 700;
   z-index: 2;
+}
+.btn-primary {
+  padding: 10px 12px;
+  border-radius: 6px;
 }
 </style>

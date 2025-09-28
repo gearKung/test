@@ -55,10 +55,21 @@ public class Review {
     @OneToOne(mappedBy = "review", cascade = CascadeType.ALL, orphanRemoval = true)
     private ReviewReply reply;
 
-    // 리뷰 노출 여부 (삭제 대신 숨김 처리)
-    @Builder.Default 
+    // // 리뷰 노출 여부 (삭제 대신 숨김 처리)
+    // @Builder.Default 
+    // @Column(nullable = false)
+    // private boolean visible = true;
+
+    public enum ReviewStatus {
+        VISIBLE,  // 노출 중
+        REPORTED, // 신고됨 (관리자 확인 대기)
+        HIDDEN    // 관리자에 의해 숨김 처리됨
+    }
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private boolean visible = true;
+    private ReviewStatus status = ReviewStatus.VISIBLE;
 
     // 생성 및 수정 시간
     private LocalDateTime createdAt;

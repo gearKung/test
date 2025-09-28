@@ -390,5 +390,13 @@ public class HotelController {
         reviewService.updateReply(replyId, replyDto);
         return ResponseEntity.ok().build();
     }
+
+    // 리뷰 신고 API
+    @PostMapping("/reviews/{reviewId}/report")
+    public ResponseEntity<Void> reportReview(@PathVariable Long reviewId, @RequestHeader("Authorization") String authHeader) {
+        Long ownerId = getUserIdFromToken(authHeader);
+        reviewService.reportReview(reviewId, ownerId);
+        return ResponseEntity.ok().build();
+    }
 }   
 

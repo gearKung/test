@@ -44,4 +44,23 @@ public class ReviewService {
         reply.setContent(replyDto.getContent());
         reviewReplyRepository.save(reply);
     }
+
+    public void reportReview(Long reviewId, Long ownerId) {
+        Review review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new IllegalArgumentException("리뷰를 찾을 수 없습니다. ID: " + reviewId));
+
+        // 해당 리뷰가 로그인한 사장님의 호텔에 달린 것이 맞는지 권한 확인
+        if (!review.getHotel().getOwner().getId().equals(ownerId)) {
+            throw new SecurityException("해당 리뷰를 신고할 권한이 없습니다.");
+        }
+
+        // 이미 신고되었거나 숨김 처리된 리뷰는 중복 신고 불가
+        if (review.getStatus() != Review.ReviewStatus.VISIBLE) {
+            throw new IllegalStateException("이미 신고되었거나 관리자에 의해 처리된 리뷰입니다.");
+        }
+
+        // 상태를 '신고됨'으로 변경
+        review.setStatus(Review.ReviewStatus.REPORTED);
+        reviewRepository.save(review);
+    }
 }

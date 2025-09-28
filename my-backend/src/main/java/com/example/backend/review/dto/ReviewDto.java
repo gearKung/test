@@ -21,6 +21,7 @@ public class ReviewDto {
     private String replyContent;
     private LocalDateTime createdAt;
     private boolean replied;
+    private String status;
 
     public static ReviewDto fromEntity(Review review) {
         return ReviewDto.builder()
@@ -36,6 +37,7 @@ public class ReviewDto {
                 .replyContent(review.getReply() != null ? review.getReply().getContent() : null)
                 .replied(review.getReply() != null)
                 .createdAt(review.getCreatedAt())
+                .status(review.getStatus().name())
                 .build();
     }
 }
