@@ -15,6 +15,10 @@ export default {
     salesData: {
       type: Array,
       required: true
+    },
+    timeUnit: {
+      type: String,
+      default: 'day'
     }
   },
   computed: {
@@ -22,11 +26,13 @@ export default {
       const labels = this.salesData.map(d => d.date);
       const data = this.salesData.map(d => d.totalSales);
       
+      const labelText = this.timeUnit === 'month' ? '월별 매출' : '일일 매출';
+
       return {
         labels: labels,
         datasets: [
           {
-            label: '일일 매출',
+            label: labelText,
             backgroundColor: '#3b82f6',
             borderColor: '#3b82f6',
             data: data,

@@ -28,6 +28,7 @@ import com.example.backend.HotelOwner.dto.AmenityDto;
 import com.example.backend.HotelOwner.dto.DailySalesDto;
 import com.example.backend.HotelOwner.dto.DashboardDto;
 import com.example.backend.HotelOwner.dto.HotelDto;
+import com.example.backend.HotelOwner.dto.MonthlySalesDto;
 import com.example.backend.HotelOwner.dto.RoomDto;
 import com.example.backend.HotelOwner.dto.SalesChartRequestDto;
 import com.example.backend.HotelOwner.service.AmenityService;
@@ -349,6 +350,16 @@ public class HotelController {
         List<DailySalesDto> dailySales = hotelService.getDailySales(ownerId, requestDto);
         return ResponseEntity.ok(dailySales);
     }
+
+    @PostMapping("/dashboard/monthly-sales")
+    public ResponseEntity<List<MonthlySalesDto>> getMonthlySales(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody SalesChartRequestDto requestDto) {
+        Long ownerId = getUserIdFromToken(authHeader);
+        List<MonthlySalesDto> monthlySales = hotelService.getMonthlySales(ownerId, requestDto);
+        return ResponseEntity.ok(monthlySales);
+    }
+    
     //  대시보드 활동 데이터 API
     @GetMapping("/dashboard/activity")
     public ResponseEntity<ReservationDtos.DashboardActivityResponse> getDashboardActivity(@RequestHeader("Authorization") String authHeader) {

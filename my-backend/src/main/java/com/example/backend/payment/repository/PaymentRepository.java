@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 
 import com.example.backend.HotelOwner.domain.Room;
 import com.example.backend.HotelOwner.dto.DailySalesDto;
+import com.example.backend.HotelOwner.dto.MonthlySalesDto;
 import com.example.backend.payment.domain.Payment;
 
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
@@ -49,4 +50,22 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     );
 
      Optional<Payment> findByReservationId(Long reservationId);
+
+     @Query("SELECT new com.example.backend.HotelOwner.dto.MonthlySalesDto(SUBSTRING(CAST(r.endDate AS STRING), 1, 7), SUM(p.basePrice)) " +
+           "FROM Payment p JOIN Reservation r ON p.reservationId = r.id " +
+           "WHERE p.status = 'COMPLETED' " +
+           "AND r.roomId IN " +
+           "(SELECT rm.id FROM Room rm WHERE rm.hotel.owner.id = :ownerId " +
+           "AND (:hotelId IS NULL OR rm.hotel.id = :hotelId) " +
+           "AND (:roomType IS NULL OR rm.roomType = :roomType)) " +
+           "AND r.endDate >= :startDate AND r.endDate < :endDate " +
+           "GROUP BY SUBSTRING(CAST(r.endDate AS STRING), 1, 7) " +
+           "ORDER BY SUBSTRING(CAST(r.endDate AS STRING), 1, 7)")
+    List<MonthlySalesDto> findMonthlySalesByOwner(
+        @Param("ownerId") Long ownerId,
+        @Param("startDate") Instant startDate,
+        @Param("endDate") Instant endDate,
+        @Param("hotelId") Long hotelId,
+        @Param("roomType") Room.RoomType roomType
+    );
 } 

@@ -61,18 +61,16 @@
                   <option :value="null">모든 호텔</option>
                   <option v-for="hotel in myHotels" :key="hotel.id" :value="hotel.id">{{ hotel.name }}</option>
                 </select>
-
                 <select v-model="chartFilters.roomType" class="filter-select small">
                   <option :value="null">모든 객실</option>
                   <option v-for="roomType in allRoomTypes" :key="roomType" :value="roomType">{{ roomType }}</option>
                 </select>
-                
                 <flat-pickr
+                  v-model="chartFilters.dateRange"
                   :config="chartDateConfig"
                   placeholder="날짜 범위 선택"
                   class="date-picker-placeholder small"
-                  :value="chartFilters.dateRange" 
-                />
+                />  
               </div>
             </div>
             
@@ -85,8 +83,8 @@
           </div>
           
           <div class="chart-placeholder">
-            <SalesChart v-if="chartData.length > 0" :sales-data="chartData" />
-            <p v-else>해당 기간에 표시할 데이터가 없습니다.</p>
+              <SalesChart v-if="chartData.length > 0" :sales-data="chartData" :time-unit="chartTimeUnit" />
+              <p v-else>해당 기간에 표시할 데이터가 없습니다.</p>
           </div>
         </div>
 
@@ -433,13 +431,6 @@
             <div class="modal-item full-width"><strong>요청사항:</strong><span>{{ selectedReservation.requests || '없음' }}</span></div>
           </div>
           <div class="modal-actions">
-            <button
-              class="btn-danger"
-              @click="cancelReservation(selectedReservation.id)"
-              :disabled="!isCancellable(selectedReservation)"
-              :class="{ 'disabled': !isCancellable(selectedReservation) }">
-              예약 취소
-            </button>
 
             <div class="check-in-out-actions">
               <button
@@ -455,6 +446,15 @@
                 :class="getCheckOutButtonClass(selectedReservation)">
                 {{ getCheckOutButtonText(selectedReservation) }}
               </button>
+
+              <button
+                class="btn-danger"
+                @click="cancelReservation(selectedReservation.id)"
+                :disabled="!isCancellable(selectedReservation)"
+                :class="{ 'disabled': !isCancellable(selectedReservation) }">
+                예약 취소
+              </button>
+
             </div>
           </div>
         </div>
@@ -633,7 +633,7 @@ export default {
       },
       chartData: [], // 그래프에 표시될 최종 데이터
       activePeriod: '7days',
-
+      chartTimeUnit: 'day',
 
       user: null,
       myHotels: [],
@@ -710,8 +710,6 @@ export default {
       recentReservations: [],
     };
   },
-
-
 
   computed: {
     filteredReservations() {
@@ -855,10 +853,6 @@ export default {
     },
   },
 
-
-
-
-
   methods: {
     async fetchDashboardSummary() {
       const headers = this.getAuthHeaders();
@@ -871,7 +865,7 @@ export default {
       }
     },
     formatNumber(num, fractionDigits = 0) {
-      if (typeof num !== 'number') return num;
+      if (num == null) return '0';
       return num.toLocaleString('ko-KR', {
         minimumFractionDigits: fractionDigits,
         maximumFractionDigits: fractionDigits,
@@ -919,39 +913,28 @@ export default {
       });
     },
 
-    async fetchChartData() {
+    async fetchDailyChartData() {
       const headers = this.getAuthHeaders();
       if (!headers) return;
 
-      let startDate, endDate;
+      let startDate, endDate; 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      // 1. 캘린더에서 날짜 범위를 직접 선택했는지 먼저 확인합니다.
       if (this.chartFilters.dateRange && this.chartFilters.dateRange.length === 2) {
-        this.activePeriod = 'custom'; // 버튼 상태를 'custom'으로 변경
+        this.activePeriod = 'custom';
         [startDate, endDate] = this.chartFilters.dateRange.map(d => new Date(d));
       } else {
-        // 2. 직접 선택하지 않았다면, '최근 7일' 등 버튼 상태에 따라 날짜를 계산합니다.
         endDate = new Date(today);
         startDate = new Date(today);
         if (this.activePeriod === '7days') {
           startDate.setDate(today.getDate() - 6);
         } else if (this.activePeriod === '30days') {
           startDate.setDate(today.getDate() - 29);
-        } else if (this.activePeriod === '1year') {
-          startDate.setFullYear(today.getFullYear() - 1);
         }
       }
       
-      // YYYY-MM-DD 형식으로 변환
-      const formatDate = (date) => {
-        const d = new Date(date);
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-      };
+      const formatDate = (date) => date.toISOString().split('T')[0];
 
       const requestBody = {
         startDate: formatDate(startDate),
@@ -964,28 +947,67 @@ export default {
         const response = await axios.post('/api/hotels/dashboard/daily-sales', requestBody, { headers });
         this.chartData = this.fillMissingDates(response.data, startDate, endDate);
       } catch (error) {
-        console.error("차트 데이터 조회 실패:", error);
+        console.error("일별 차트 데이터 조회 실패:", error);
+        this.chartData = [];
+      }
+    },
+    async fetchMonthlyChartData() {
+      const headers = this.getAuthHeaders();
+      if (!headers) return;
+
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setFullYear(endDate.getFullYear() - 1);
+      
+      const formatDate = (date) => date.toISOString().split('T')[0];
+
+      const requestBody = {
+        startDate: formatDate(startDate),
+        endDate: formatDate(endDate),
+        hotelId: this.chartFilters.hotelId,
+        roomType: this.chartFilters.roomType,
+      };
+
+      try {
+        const response = await axios.post('/api/hotels/dashboard/monthly-sales', requestBody, { headers });
+        this.chartData = this.fillMissingMonths(response.data, startDate, endDate);
+      } catch (error) {
+        console.error("월별 차트 데이터 조회 실패:", error);
         this.chartData = [];
       }
     },
     
-    // ✅ [추가] 데이터가 없는 날짜를 0으로 채워주는 헬퍼 함수
+    // 데이터가 없는 날짜를 0으로 채워주는 헬퍼 함수
+    fillMissingMonths(data, startDate, endDate) {
+      const salesMap = new Map(data.map(item => [item.yearMonth, item.totalSales]));
+      const filledData = [];
+      let currentDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+
+      while (currentDate <= endDate) {
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const yearMonth = `${year}-${month}`;
+
+        filledData.push({
+          date: yearMonth, // 통일성을 위해 'date' key 사용
+          totalSales: salesMap.get(yearMonth) || 0
+        });
+        
+        currentDate.setMonth(currentDate.getMonth() + 1);
+      }
+      return filledData;
+    },
     fillMissingDates(data, startDate, endDate) {
       const salesMap = new Map(data.map(item => [item.date, item.totalSales]));
       const filledData = [];
       let currentDate = new Date(startDate);
 
       while (currentDate <= endDate) {
-        const y = currentDate.getFullYear();
-        const m = String(currentDate.getMonth() + 1).padStart(2, '0');
-        const d = String(currentDate.getDate()).padStart(2, '0');
-        const dateStr = `${y}-${m}-${d}`;
-
+        const dateString = currentDate.toISOString().split('T')[0];
         filledData.push({
-          date: dateStr,
-          totalSales: salesMap.get(dateStr) || 0
+          date: dateString,
+          totalSales: salesMap.get(dateString) || 0
         });
-        
         currentDate.setDate(currentDate.getDate() + 1);
       }
       return filledData;
@@ -994,8 +1016,6 @@ export default {
     // 기간 버튼 클릭 핸들러
     setPeriod(period) {
       this.activePeriod = period;
-      this.chartFilters.dateRange = []; // 기간 버튼 선택 시 캘린더 선택은 초기화
-      // this.fetchChartData();
     },
     clearChartFilters() {
       this.chartFilters.hotelId = null;
@@ -1478,11 +1498,15 @@ export default {
     },
     isToday(dateStr) {
       if (!dateStr) return false;
+      // 오늘 날짜를 'YYYY-MM-DD' 형식의 문자열로 만듭니다.
       const today = new Date();
-      const targetDate = new Date(dateStr);
-      return today.getFullYear() === targetDate.getFullYear() &&
-            today.getMonth() === targetDate.getMonth() &&
-            today.getDate() === targetDate.getDate();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const todayStr = `${year}-${month}-${day}`;
+
+      // Date 객체의 복잡한 변환 없이 문자열을 직접 비교하여 시간대 문제를 원천 차단합니다.
+      return dateStr === todayStr;
     },
 
     // 체크인 버튼 표시 여부
@@ -1657,26 +1681,64 @@ export default {
 
 
   watch: {
-    chartFilters: {
-      handler(newFilters, oldFilters) {
-        const newDateRange = JSON.stringify(newFilters.dateRange);
-        const oldDateRange = oldFilters ? JSON.stringify(oldFilters.dateRange) : null;
+    // chartFilters: {
+    //   handler(newFilters) {
+    //     // 1. 캘린더로 날짜 범위를 직접 선택한 경우를 최우선으로 처리합니다.
+    //     if (newFilters.dateRange && newFilters.dateRange.length === 2) {
+    //       this.activePeriod = 'custom'; // 기간 버튼들의 'active' 상태를 해제합니다.
+    //       this.chartTimeUnit = 'day';
+    //       this.fetchDailyChartData();
+    //     } 
+    //     // 2. 캘린더 선택이 아닌 경우 (필터 버튼 클릭 등) 기존 로직을 따릅니다.
+    //     else {
+    //       if (this.activePeriod === '1year') {
+    //         this.chartTimeUnit = 'month';
+    //         this.fetchMonthlyChartData();
+    //       } else { // '7days', '30days' 등
+    //         this.chartTimeUnit = 'day';
+    //         this.fetchDailyChartData();
+    //       }
+    //     }
+    //   },
+    //   deep: true
+    // },
 
-        if (newDateRange !== oldDateRange && newFilters.dateRange && newFilters.dateRange.length > 0) {
+    // // 캘린더 이벤트 목록을 감시하는 부분은 그대로 유지합니다.
+    // filteredCalendarEvents: {
+    //   handler(newEvents) {
+    //     this.calendarOptions.events = newEvents;
+    //   },
+    //   immediate: true
+    // }
+    'chartFilters.dateRange'(newRange) {
+      // 날짜 범위가 올바르게 선택되었을 때만 실행합니다.
+      if (newRange && newRange.length === 2) {
+        // 캘린더 선택은 기간 버튼(7일, 30일 등)보다 우선합니다.
+        if (this.activePeriod !== 'custom') {
             this.activePeriod = 'custom';
         }
-        
-        this.fetchChartData();
-      },
-      deep: true
+        this.chartTimeUnit = 'day';
+        this.fetchDailyChartData();
+      }
     },
 
-    // 캘린더 이벤트 목록을 감시하는 부분은 그대로 유지합니다.
-    filteredCalendarEvents: {
-      handler(newEvents) {
-        this.calendarOptions.events = newEvents;
-      },
-      immediate: true
+    // '7일', '30일', '1년' 버튼 클릭을 감지합니다.
+    activePeriod(newPeriod) {
+      // 캘린더를 선택해서 'custom'으로 변경된 경우는 무시합니다.
+      if (newPeriod === 'custom') {
+        return;
+      }
+
+      // 버튼을 누르면 캘린더 선택은 초기화합니다.
+      this.chartFilters.dateRange = [];
+      
+      if (newPeriod === '1year') {
+        this.chartTimeUnit = 'month';
+        this.fetchMonthlyChartData();
+      } else { // '7days', '30days'
+        this.chartTimeUnit = 'day';
+        this.fetchDailyChartData();
+      }
     }
   },
 
@@ -1695,7 +1757,7 @@ export default {
     });
 
     this.fetchDashboardSummary();
-    this.fetchChartData();
+    this.fetchDailyChartData();
     this.fetchDashboardActivity();
 
     this.fetchReviews();
@@ -1708,7 +1770,7 @@ export default {
         calendarEl.removeEventListener('wheel', this.handleWheelScroll);
     }
   }
-};
+ }
 </script>
 
 <style scoped>
@@ -2410,7 +2472,7 @@ export default {
   padding-top: 20px;
   border-top: 1px solid #e5e7eb;
   display: flex;
-  justify-content: space-between; /* 양쪽 끝으로 정렬 */
+  justify-content: flex-end; /* 양쪽 끝으로 정렬 */
   align-items: center;
 }
 .btn-danger { 
@@ -2794,6 +2856,7 @@ export default {
   font-size: 14px;
   font-weight: 500;
   color: #4b5563;
+    
 }
 
 .date-filter-tabs button.active {

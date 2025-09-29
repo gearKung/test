@@ -29,6 +29,7 @@ import com.example.backend.HotelOwner.domain.User;
 import com.example.backend.HotelOwner.dto.DailySalesDto;
 import com.example.backend.HotelOwner.dto.DashboardDto;
 import com.example.backend.HotelOwner.dto.HotelDto;
+import com.example.backend.HotelOwner.dto.MonthlySalesDto;
 import com.example.backend.HotelOwner.dto.RoomDto;
 import com.example.backend.HotelOwner.dto.SalesChartRequestDto;
 import com.example.backend.HotelOwner.repository.AmenityRepository;
@@ -389,5 +390,20 @@ public class HotelService {
         return reviewRepository.findByHotelOwnerId(ownerId).stream()
                 .map(ReviewDto::fromEntity)
                 .collect(Collectors.toList());
+    }
+    
+    @Transactional(readOnly = true)
+    public List<MonthlySalesDto> getMonthlySales(Long ownerId, SalesChartRequestDto requestDto) {
+        Instant start = requestDto.getStartDate().atStartOfDay(ZoneId.systemDefault()).toInstant();
+        Instant end = requestDto.getEndDate().plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
+
+        return paymentRepository.findMonthlySalesByOwner(
+            ownerId,
+            start,
+            end,
+            requestDto.getHotelId(),
+            requestDto.getRoomType()
+     
+        );
     }
 }
