@@ -606,15 +606,7 @@ export default {
         altInput: true,       // 사용자에게 보여줄 대체 입력란 사용
         altFormat: "Y년 m월 d일", // 보여줄 날짜 형식
         locale: Korean,       // 한국어 설정
-        onClose: (selectedDates) => {
-          // 사용자가 날짜 선택을 마치고 창을 닫았을 때만 값을 업데이트합니다.
-          if (selectedDates.length === 2) {
-            this.chartFilters.dateRange = [
-              new Date(selectedDates[0]),
-              new Date(selectedDates[1]),
-            ];
-          }
-        },
+        
         // onClose 콜백 등을 필요에 따라 추가할 수 있습니다.
         onReady: (_, __, instance) => {
           this.updateChartCalendarHeaders(instance);
@@ -882,10 +874,11 @@ export default {
       return `${sign}${this.formatNumber(change, 1)}%`;
     },
     clearChartFilters() {
-      this.chartDateRange = []; // 날짜 선택 배열을 비웁니다.
-      // 필요하다면 호텔, 객실 필터도 여기서 초기화할 수 있습니다.
-      // this.chartHotelFilter = 'ALL';
-      // this.chartRoomFilter = 'ALL';
+      this.chartFilters.hotelId = null;
+      this.chartFilters.roomType = null;
+      // 'chartDateRange'가 아니라 'chartFilters.dateRange'를 초기화해야 합니다.
+      this.chartFilters.dateRange = []; 
+      this.setPeriod('7days');
     },
     updateChartCalendarHeaders(instance) {
       if (!instance.calendarContainer) return;
@@ -946,6 +939,8 @@ export default {
       try {
         const response = await axios.post('/api/hotels/dashboard/daily-sales', requestBody, { headers });
         this.chartData = this.fillMissingDates(response.data, startDate, endDate);
+
+        console.log('✅ API로부터 받은 최종 차트 데이터:', this.chartData);
       } catch (error) {
         console.error("일별 차트 데이터 조회 실패:", error);
         this.chartData = [];
@@ -1016,11 +1011,6 @@ export default {
     // 기간 버튼 클릭 핸들러
     setPeriod(period) {
       this.activePeriod = period;
-    },
-    clearChartFilters() {
-      this.chartFilters.hotelId = null;
-      this.chartFilters.roomType = null;
-      this.setPeriod('7days');
     },
     async fetchDashboardActivity() {
       const headers = this.getAuthHeaders();
