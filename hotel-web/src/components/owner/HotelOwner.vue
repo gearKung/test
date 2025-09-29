@@ -384,6 +384,12 @@
                   <option value="COMPLETED">예약 완료</option>
                   <option value="CANCELLED">예약 취소</option>
               </select>
+
+              <div class="date-filter-tabs">
+                <button :class="{ active: filterDateType === 'all' }" @click="setFilterDateType('all')">전체</button>
+                <button :class="{ active: filterDateType === 'check-in' }" @click="setFilterDateType('check-in')">체크인</button>
+                <button :class="{ active: filterDateType === 'check-out' }" @click="setFilterDateType('check-out')">체크아웃</button>
+              </div>
             </div>
 
             <ul class="reservation-list">
@@ -427,13 +433,29 @@
             <div class="modal-item full-width"><strong>요청사항:</strong><span>{{ selectedReservation.requests || '없음' }}</span></div>
           </div>
           <div class="modal-actions">
-            <button 
-              class="btn-danger" 
+            <button
+              class="btn-danger"
               @click="cancelReservation(selectedReservation.id)"
               :disabled="!isCancellable(selectedReservation)"
               :class="{ 'disabled': !isCancellable(selectedReservation) }">
               예약 취소
             </button>
+
+            <div class="check-in-out-actions">
+              <button
+                v-if="shouldShowCheckInButton(selectedReservation)"
+                @click="toggleCheckIn(selectedReservation)"
+                :class="getCheckInButtonClass(selectedReservation)">
+                {{ getCheckInButtonText(selectedReservation) }}
+              </button>
+
+              <button
+                v-if="shouldShowCheckOutButton(selectedReservation)"
+                @click="toggleCheckOut(selectedReservation)"
+                :class="getCheckOutButtonClass(selectedReservation)">
+                {{ getCheckOutButtonText(selectedReservation) }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -667,6 +689,8 @@ export default {
           }
         },
       },
+      checkInStatus: {}, // 체크인/아웃 상태를 로컬에서 관리 (예: { reservationId: 'CHECKED_IN' })
+      filterDateType: 'all', 
 
       // 리뷰 관련 
       allReviews: [],
@@ -691,19 +715,36 @@ export default {
 
   computed: {
     filteredReservations() {
+      console.log("필터링 로직 실행:", {
+        selectedDate: this.selectedDate,
+        filterDateType: this.filterDateType
+      });
+      
       let reservations = this.allReservations;
+      const today = new Date().toISOString().split('T')[0];
 
-      if (this.selectedDate) {
+      // 1. '오늘 체크인' 또는 '오늘 체크아웃' 버튼 필터를 최우선으로 적용합니다.
+      if (this.filterDateType === 'check-in') {
+        // 체크인 날짜가 오늘과 '정확히' 일치하는 예약만 필터링합니다.
+        reservations = reservations.filter(r => r.checkInDate === today);
+      } else if (this.filterDateType === 'check-out') {
+        // 체크아웃 날짜가 오늘과 '정확히' 일치하는 예약만 필터링합니다.
+        reservations = reservations.filter(r => r.checkOutDate === today);
+      }
+      // 2. 버튼 필터가 꺼져 있을 때만('전체' 상태) 캘린더 날짜 선택을 적용합니다.
+      else if (this.selectedDate) {
+        // 캘린더에서 날짜를 클릭하면 해당 날짜에 '숙박 중인' 모든 예약을 찾습니다.
         const selected = new Date(this.selectedDate);
-        selected.setHours(0,0,0,0);
+        selected.setHours(0, 0, 0, 0);
         reservations = reservations.filter(r => {
           const checkIn = new Date(r.checkInDate);
-          checkIn.setHours(0,0,0,0);
+          checkIn.setHours(0, 0, 0, 0);
           const checkOut = new Date(r.checkOutDate);
-          checkOut.setHours(0,0,0,0);
-          return selected >= checkIn && selected <= checkOut;
+          checkOut.setHours(0, 0, 0, 0);
+          return checkIn <= selected && selected < checkOut;
         });
       }
+
       
       if (this.filterStatus !== 'ALL') {
         reservations = reservations.filter(r => r.status === this.filterStatus);
@@ -720,6 +761,13 @@ export default {
           r.guestName.toLowerCase().includes(keyword)
         );
       }
+
+      if (this.filterDateType === 'check-in') {
+        reservations = reservations.filter(r => r.checkInDate === today);
+      } else if (this.filterDateType === 'check-out') {
+        reservations = reservations.filter(r => r.checkOutDate === today);
+      }
+
       return reservations;
     },
     isCancellable() {
@@ -1362,9 +1410,11 @@ export default {
     },
     handleDateClick(arg) {
       this.selectedDate = arg.dateStr;
-      this.searchKeyword = '';
-      this.filterStatus = 'COMPLETED';
-      this.filterRoomType = 'ALL';
+      this.filterDateType = 'all'; // 캘린더 클릭 시, 버튼 필터는 '전체'로 초기화
+    },
+    setFilterDateType(type) {
+      this.filterDateType = type;
+      this.selectedDate = null; // 캘린더 날짜 선택을 초기화
     },
     handleEventClick(clickInfo) {
     // 캘린더에서 이벤트를 클릭하면 해당 예약의 상세 정보를 보여줍니다.
@@ -1426,7 +1476,63 @@ export default {
         alert("예약 취소 중 오류가 발생했습니다.");
       }
     },
-    
+    isToday(dateStr) {
+      if (!dateStr) return false;
+      const today = new Date();
+      const targetDate = new Date(dateStr);
+      return today.getFullYear() === targetDate.getFullYear() &&
+            today.getMonth() === targetDate.getMonth() &&
+            today.getDate() === targetDate.getDate();
+    },
+
+    // 체크인 버튼 표시 여부
+    shouldShowCheckInButton(reservation) {
+      return this.isToday(reservation.checkInDate) && reservation.status === 'COMPLETED';
+    },
+
+    // 체크아웃 버튼 표시 여부
+    shouldShowCheckOutButton(reservation) {
+      const isCheckedIn = this.checkInStatus[reservation.id] === 'CHECKED_IN';
+      return isCheckedIn && this.isToday(reservation.checkOutDate) && reservation.status === 'COMPLETED';
+    },
+
+    // 체크인 버튼 텍스트
+    getCheckInButtonText(reservation) {
+      return this.checkInStatus[reservation.id] === 'CHECKED_IN' ? '체크인 취소' : '체크인';
+    },
+
+    // 체크아웃 버튼 텍스트
+    getCheckOutButtonText(reservation) {
+      return this.checkInStatus[reservation.id] === 'CHECKED_OUT' ? '체크아웃 취소' : '체크아웃';
+    },
+
+    // 체크인 버튼 클래스
+    getCheckInButtonClass(reservation) {
+      return this.checkInStatus[reservation.id] === 'CHECKED_IN' ? 'btn-cancel' : 'btn-confirm';
+    },
+
+    // 체크아웃 버튼 클래스
+    getCheckOutButtonClass(reservation) {
+      return this.checkInStatus[reservation.id] === 'CHECKED_OUT' ? 'btn-cancel' : 'btn-confirm';
+    },
+
+    // 체크인 상태 토글
+    toggleCheckIn(reservation) {
+      if (this.checkInStatus[reservation.id] === 'CHECKED_IN') {
+        delete this.checkInStatus[reservation.id];
+      } else {
+        this.checkInStatus[reservation.id] = 'CHECKED_IN';
+      }
+    },
+
+    // 체크아웃 상태 토글
+    toggleCheckOut(reservation) {
+      if (this.checkInStatus[reservation.id] === 'CHECKED_OUT') {
+        this.checkInStatus[reservation.id] = 'CHECKED_IN';
+      } else {
+        this.checkInStatus[reservation.id] = 'CHECKED_OUT';
+      }
+    },
 
     showReviewDetails(review) {
       // 원본 데이터를 수정하지 않기 위해 객체를 복사해서 사용
@@ -1650,8 +1756,8 @@ export default {
   background: #374151;
 }
 .main-content {
-  margin-left: 130px;
-  width: calc(100% - 130px);
+  margin-left: 100px;
+  width: calc(100% - 50px);
   height: 100vh;
   padding: 0;
   box-sizing: border-box;
@@ -2648,6 +2754,52 @@ export default {
   padding-bottom: 15px;
   border-bottom: 1px solid #e5e7eb;
   font-size: 16px;
+}.check-in-out-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.check-in-out-actions button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-confirm {
+  background-color: #10b981; /* 녹색 */
+  color: white;
+}
+
+.btn-cancel {
+  background-color: #f59e0b; /* 주황색 */
+  color: white;
+}
+
+.date-filter-tabs {
+  display: flex;
+  gap: 8px;
+  background-color: #e5e7eb;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.date-filter-tabs button {
+  flex: 1;
+  padding: 4px 8px;
+  border: none;
+  background-color: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #4b5563;
+}
+
+.date-filter-tabs button.active {
+  background-color: #fff;
+  color: #111827;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 .check-in-out-tabs {
   display: flex;
