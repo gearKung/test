@@ -1011,6 +1011,7 @@ export default {
     // 기간 버튼 클릭 핸들러
     setPeriod(period) {
       this.activePeriod = period;
+      this.chartFilters.dateRange = [];
     },
     async fetchDashboardActivity() {
       const headers = this.getAuthHeaders();
@@ -1671,45 +1672,32 @@ export default {
 
 
   watch: {
-    // chartFilters: {
-    //   handler(newFilters) {
-    //     // 1. 캘린더로 날짜 범위를 직접 선택한 경우를 최우선으로 처리합니다.
-    //     if (newFilters.dateRange && newFilters.dateRange.length === 2) {
-    //       this.activePeriod = 'custom'; // 기간 버튼들의 'active' 상태를 해제합니다.
-    //       this.chartTimeUnit = 'day';
-    //       this.fetchDailyChartData();
-    //     } 
-    //     // 2. 캘린더 선택이 아닌 경우 (필터 버튼 클릭 등) 기존 로직을 따릅니다.
-    //     else {
-    //       if (this.activePeriod === '1year') {
-    //         this.chartTimeUnit = 'month';
-    //         this.fetchMonthlyChartData();
-    //       } else { // '7days', '30days' 등
-    //         this.chartTimeUnit = 'day';
-    //         this.fetchDailyChartData();
-    //       }
-    //     }
-    //   },
-    //   deep: true
-    // },
-
-    // // 캘린더 이벤트 목록을 감시하는 부분은 그대로 유지합니다.
-    // filteredCalendarEvents: {
-    //   handler(newEvents) {
-    //     this.calendarOptions.events = newEvents;
-    //   },
-    //   immediate: true
-    // }
-    'chartFilters.dateRange'(newRange) {
-      // 날짜 범위가 올바르게 선택되었을 때만 실행합니다.
-      if (newRange && newRange.length === 2) {
-        // 캘린더 선택은 기간 버튼(7일, 30일 등)보다 우선합니다.
-        if (this.activePeriod !== 'custom') {
-            this.activePeriod = 'custom';
+    chartFilters: {
+      handler(newFilters) {
+        // 1. 캘린더로 날짜 범위를 직접 선택한 경우를 최우선으로 처리합니다.
+        if (this.chartFilters.dateRange && this.chartFilters.dateRange.length === 2) {
+          this.activePeriod = 'custom'; // 기간 버튼 상태를 'custom'으로 변경
+          this.chartTimeUnit = 'day';
+          this.fetchDailyChartData();
+        } 
+        // 날짜 범위가 선택되지 않았을 경우 (기간 버튼 클릭 등)
+        else {
+          if (this.activePeriod === '1year') {
+            this.chartTimeUnit = 'month';
+            this.fetchMonthlyChartData();
+          } else { // '7days', '30days' 등
+            this.chartTimeUnit = 'day';
+            this.fetchDailyChartData();
+          }
         }
-        this.chartTimeUnit = 'day';
-        this.fetchDailyChartData();
-      }
+      },
+      deep: true
+    },
+    filteredCalendarEvents: {
+      handler(newEvents) {
+        this.calendarOptions.events = newEvents;
+      },
+      immediate: true
     },
 
     // '7일', '30일', '1년' 버튼 클릭을 감지합니다.
