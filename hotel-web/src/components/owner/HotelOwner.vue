@@ -598,7 +598,6 @@ export default {
         salesChangeVsLastMonth: 0,
       },
 
-      chartDateRange: [], // 선택된 날짜 범위를 저장할 배열
       chartDateConfig: {
         showMonths: 2,
         mode: "range",        // 범위 선택 모드
@@ -876,7 +875,6 @@ export default {
     clearChartFilters() {
       this.chartFilters.hotelId = null;
       this.chartFilters.roomType = null;
-      // 'chartDateRange'가 아니라 'chartFilters.dateRange'를 초기화해야 합니다.
       this.chartFilters.dateRange = []; 
       this.setPeriod('7days');
     },
@@ -1011,7 +1009,6 @@ export default {
     // 기간 버튼 클릭 핸들러
     setPeriod(period) {
       this.activePeriod = period;
-      this.chartFilters.dateRange = [];
     },
     async fetchDashboardActivity() {
       const headers = this.getAuthHeaders();
